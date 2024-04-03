@@ -1,0 +1,76 @@
+# MIT License, Copyright (c) 2024 Marvin Borner
+
+:import std/Combinator .
+
+# white pixel
+w k
+
+# black pixel
+b ki
+
+# returns true if pixel is white
+# TODO: what about recursive structures?
+w? [0]
+
+:test (w? w) ([[1]])
+:test (w? b) ([[0]])
+
+# returns true if pixel is black
+# TODO: what about recursive structures?
+b? [0 b w]
+
+:test (b? w) ([[0]])
+:test (b? b) ([[1]])
+
+# inverts pixel color
+invert c
+
+:test (invert w) (b)
+:test (invert b) (w)
+
+build [[[[[0 4 3 2 1]]]]]
+
+empty build b b b b
+
+# id/getter of top left pixel
+tl [[[[3]]]]
+
+# id/getter of top right pixel
+tr [[[[2]]]]
+
+# id/getter of bottom left pixel
+bl [[[[1]]]]
+
+# id/getter of bottom right pixel
+br [[[[0]]]]
+
+# extracts pixel at position
+get t
+
+:test (get tl (build w b b b)) (w)
+:test (get bl (build b b w b)) (w)
+
+# updates top left pixel
+tl! [[1 [[[[[0 5 3 2 1]]]]]]]
+
+:test (tl! empty w) (build w b b b)
+
+# updates top right pixel
+tr! [[1 [[[[[0 4 5 2 1]]]]]]]
+
+:test (tr! empty w) (build b w b b)
+
+# updates bottom left pixel
+bl! [[1 [[[[[0 4 3 5 1]]]]]]]
+
+:test (bl! empty w) (build b b w b)
+
+# updates bottom right pixel
+br! [[1 [[[[[0 4 3 2 5]]]]]]]
+
+:test (br! empty w) (build b b b w)
+
+# maps each pixel to a function
+map [&[[[[[0 (5 4) (5 3) (5 2) (5 1)]]]]]]
+
+:test (map invert empty) (build w w w w)
