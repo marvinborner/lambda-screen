@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>Lambda Screen</title>
+    <title>Lambda Screen - Fractals in Pure Lambda Calculus</title>
     <link rel="stylesheet" href="style.css" type="text/css" media="all" />
   </head>
   <body>
@@ -24,23 +24,34 @@
         <div class="inputWrap">
           Load preset:
           <select id="examples">
-            <option value="" selected disabled hidden></option>
+            <option value="" selected>Empty</option>
             <option value="\0">Identity</option>
-            <option value="\\((((0 \\0) \\0) \\0) \\0)">Just black</option>
             <option
-              value="\(0 \\\\\((((0 \\((6 0) 1)) \\((5 0) 1)) \\((4 0) 1)) \\((3 0) 1)))"
+              value="tl = \\0
+tr = \\0
+bl = \\0
+br = \\0
+\\((((0 tl) tr) bl) br)"
+            >
+              Just black
+            </option>
+            <option
+              value="map = \\(0 \\\\\((((0 (6 4)) (6 3)) (6 2)) (6 1)))
+invert = \\\((2 0) 1)
+(map invert)"
             >
               Invert
             </option>
           </select>
         </div>
-        <input
+        <span id="error"></span>
+        <textarea
           type="text"
-          placeholder="e.g. \(0...) or 000110... (BLC)"
-          value=""
+          rows="5"
+          placeholder="e.g. \\(0...) or 00000110... (BLC) or [[0 ...]] (bruijn)"
           name="term"
           id="term"
-        />
+        ></textarea>
       </div>
       <button id="render">Render!</button>
     </main>
