@@ -25,7 +25,11 @@ worker.postMessage({ canvas: offscreen }, [offscreen]);
 
 const drawAt = (x, y, color) => {
   worker.postMessage([
-    color == WHITE ? "white" : color == BLACK ? "black" : "grey",
+    color == WHITE
+      ? [1, 1, 1, 1]
+      : color == BLACK
+        ? [0, 0, 0, 1]
+        : [0.1, 0.1, 0.1, 0.3],
     x[0],
     y[0],
     x[1] - x[0],
@@ -525,6 +529,7 @@ window.examples.addEventListener("change", () => {
 });
 
 window.render.addEventListener("click", () => {
+  clearScreen();
   clearErrors();
   reduce(
     app(parse(window.term.value))(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
