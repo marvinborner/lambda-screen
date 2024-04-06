@@ -74,3 +74,7 @@ br! [[1 [[[[[0 4 3 2 5]]]]]]]
 map [&[[[[[0 (5 4) (5 3) (5 2) (5 1)]]]]]]
 
 :test (map invert empty) (build w w w w)
+
+qsplit map [w? 0 (build w w w w) (build b b b b)]
+
+:test (qsplit (build b w b w)) (build (build b b b b) (build w w w w) (build b b b b) (build w w w w))

@@ -16,40 +16,47 @@ const BLACK = 1;
 const UNKNOWN = 2;
 
 const canvas = window.canvas;
-const screen = canvas.getContext("2d");
 
 const root = { x: [0, canvas.width], y: [0, canvas.height] };
 
+const offscreen = canvas.transferControlToOffscreen();
+const worker = new Worker("worker.js");
+worker.postMessage({ canvas: offscreen }, [offscreen]);
+
 const drawAt = (x, y, color) => {
-  screen.fillStyle =
-    color == WHITE ? "white" : color == BLACK ? "black" : "grey";
-  screen.fillRect(x[0], y[0], x[1], y[1]);
+  worker.postMessage([
+    color == WHITE ? "white" : color == BLACK ? "black" : "grey",
+    x[0],
+    y[0],
+    x[1] - x[0],
+    y[1] - y[0],
+  ]);
 };
 
 const drawTopLeft = (ctx, color) => {
-  const newX = [ctx.x[0], ctx.x[1] / 2];
-  const newY = [ctx.y[0], ctx.y[1] / 2];
+  const newX = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
+  const newY = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
   drawAt(newX, newY, color);
   return { x: newX, y: newY };
 };
 
 const drawTopRight = (ctx, color) => {
-  const newX = [ctx.x[1] / 2, ctx.x[1]];
-  const newY = [ctx.y[0], ctx.y[1] / 2];
+  const newX = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
+  const newY = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
   drawAt(newX, newY, color);
   return { x: newX, y: newY };
 };
 
 const drawBottomLeft = (ctx, color) => {
-  const newX = [ctx.x[0], ctx.x[1] / 2];
-  const newY = [ctx.y[1] / 2, ctx.y[1]];
+  const newX = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
+  const newY = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
   drawAt(newX, newY, color);
   return { x: newX, y: newY };
 };
 
 const drawBottomRight = (ctx, color) => {
-  const newX = [ctx.x[1] / 2, ctx.x[1]];
-  const newY = [ctx.y[1] / 2, ctx.y[1]];
+  const newX = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
+  const newY = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
   drawAt(newX, newY, color);
   return { x: newX, y: newY };
 };
@@ -60,23 +67,44 @@ const drawBottomRight = (ctx, color) => {
 // `return null` and `if (foo === null) return null` are the monads of JavaScript!!
 // ---
 
+const allHashes = {};
+const hash = (s) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    const chr = s.charCodeAt(i);
+    h = (h << 5) - h + chr;
+    h |= 0;
+  }
+  while (h in allHashes && allHashes[h] !== s) h += 1;
+  allHashes[h] = s;
+  return h;
+};
+
 const abs = (body) => {
   if (body === null) return null;
-  return { type: "abs", body };
+  const t = { type: "abs", body };
+  t.hash = hash("abs" + body.hash);
+  return t;
 };
 
 const app = (left) => (right) => {
   if (left === null || right === null) return null;
-  return { type: "app", left, right };
+  const t = { type: "app", left, right };
+  t.hash = hash("app" + left.hash + right.hash);
+  return t;
 };
 
 const idx = (idx) => {
   if (idx === null) return null;
-  return { type: "idx", idx };
+  const t = { type: "idx", idx };
+  t.hash = hash("idx" + idx);
+  return t;
 };
 
 const def = (name) => {
-  return { type: "def", name };
+  const t = { type: "def", name };
+  t.hash = hash("def" + name);
+  return t;
 };
 
 const show = (t) => {
@@ -121,11 +149,9 @@ const parseLam = (str) => {
   switch (head) {
     case "λ":
     case "\\":
-      const [body, _tail] = parseLam(tail);
-      return [abs(body), _tail];
     case "[": // bruijn
-      const [bbody, _btail] = parseLam(tail);
-      return [abs(bbody), _btail.slice(1)];
+      const [body, _tail] = parseLam(tail);
+      return [abs(body), head == "[" ? _tail.slice(1) : _tail];
     case "(":
       const [left, tail1] = parseLam(tail);
       const [right, tail2] = parseLam(tail1.slice(1));
@@ -217,6 +243,7 @@ const parse = (str) => {
     .trim()
     .split(/\r?\n/)
     .every((line) => {
+      if (line.startsWith("--") || line.length == 0) return true;
       if (!line.includes("=")) {
         t = resolveTerm(parseTerm(line), defs);
         return false;
@@ -252,7 +279,7 @@ const seemsScreeny = (t) =>
   t.body.left.left.left.left.idx === 0;
 
 const clearScreen = () => {
-  screen.clearRect(0, 0, canvas.width, canvas.height);
+  worker.postMessage("clear");
 };
 
 /* beta reduction */
@@ -275,40 +302,65 @@ const cancelReduction = () => {
   return canceled;
 };
 
+const incCache = {};
 const inc = (i, t) => {
   if (cancelReduction() || t === null) {
     error("in inc");
     return null;
   }
+
+  if (t.hash in incCache && i in incCache[t.hash]) return incCache[t.hash][i];
+
+  let newT;
   switch (t.type) {
     case "idx":
-      return idx(i <= t.idx ? t.idx + 1 : t.idx);
+      newT = idx(i <= t.idx ? t.idx + 1 : t.idx);
+      break;
     case "app":
-      return app(inc(i, t.left))(inc(i, t.right));
+      newT = app(inc(i, t.left))(inc(i, t.right));
+      break;
     case "abs":
-      return abs(inc(i + 1, t.body));
+      newT = abs(inc(i + 1, t.body));
+      break;
     case "def":
       error("unexpected def");
       return null;
   }
+
+  if (!(t.hash in incCache)) incCache[t.hash] = {};
+  incCache[t.hash][i] = newT;
+  return newT;
 };
 
+const substCache = {};
 const subst = (i, t, s) => {
   if (cancelReduction() || t === null) {
     error("in subst");
     return null;
   }
+
+  const h = hash("" + t.hash + s.hash);
+  if (h in substCache && i in substCache[h]) return substCache[h][i];
+
+  let newT;
   switch (t.type) {
     case "idx":
-      return i == t.idx ? s : idx(t.idx > i ? t.idx - 1 : t.idx);
+      newT = i == t.idx ? s : idx(t.idx > i ? t.idx - 1 : t.idx);
+      break;
     case "app":
-      return app(subst(i, t.left, s))(subst(i, t.right, s));
+      newT = app(subst(i, t.left, s))(subst(i, t.right, s));
+      break;
     case "abs":
-      return abs(subst(i + 1, t.body, inc(0, s)));
+      newT = abs(subst(i + 1, t.body, inc(0, s)));
+      break;
     case "def":
       error("unexpected def");
       return null;
   }
+
+  if (!(h in substCache)) substCache[h] = {};
+  substCache[h][i] = newT;
+  return newT;
 };
 
 // guaranteed normal form
@@ -336,42 +388,53 @@ const gnf = (t) => {
 };
 
 // weak head normal form
+const whnfCache = {};
 const whnf = (t) => {
   if (cancelReduction() || t === null) {
     error("in whnf");
     return null;
   }
+
+  if (t.hash in whnfCache) return whnfCache[t.hash];
+
+  let newT;
   switch (t.type) {
     case "app":
       const _left = whnf(t.left);
       if (_left === null) return null;
-      return _left.type === "abs"
-        ? whnf(subst(0, _left.body, t.right))
-        : app(_left)(t.right);
+      newT =
+        _left.type === "abs"
+          ? whnf(subst(0, _left.body, t.right))
+          : app(_left)(t.right);
+      break;
     case "def":
       error("unexpected def");
       return null;
     default:
-      return t;
+      newT = t;
+      break;
   }
+
+  whnfCache[t.hash] = newT;
+  return newT;
 };
 
 // screen normal form
 // one of [((((0 tl) tr) bl) br)], [[0]], [[1]]
+const snfCache = {};
 const snf = (_t) => {
+  if (_t !== null && _t.hash in snfCache) return snfCache[_t.hash];
+
   let t = whnf(_t);
   if (t === null || t.type !== "abs") {
     error("not a screen/pixel");
     return null;
   }
+
   t = abs(whnf(t.body));
   if (t.body.type === "abs") return gnf(t); // not a screen, probably a pixel
 
   while (t !== null && !seemsScreeny(t)) {
-    if (cancelReduction()) {
-      error("in snf");
-      return null;
-    }
     // TODO: a bit unsure about this
     switch (t.type) {
       case "app":
@@ -392,18 +455,25 @@ const snf = (_t) => {
         return null;
     }
   }
+
+  snfCache[_t.hash] = t;
   return t;
 };
 
 const reduce = (_t) => {
-  console.log(show(_t));
   const stack = [{ ctx: root, t: _t }];
-  for (let i = 0; stack.length > 0 && i < 1024; i++) {
-    let { ctx, t } = stack.pop();
+  for (let i = 0; stack.length > 0 && i < 4 ** 10; i++) {
+    // console.log(i, stack.length);
+    let [{ ctx, t }] = stack.splice(
+      Math.floor(Math.random() * stack.length),
+      1,
+    );
+    // let { ctx, t } = stack.shift();
+    // let { ctx, t } = stack.pop();
     if (toColor(t) !== UNKNOWN) continue;
 
     // could loop in gnf, therefore limit depth
-    MAX = 16384;
+    MAX = 10000000;
     depth = 0;
     canceled = false;
     try {
@@ -427,6 +497,7 @@ const reduce = (_t) => {
       const br = t.body.right;
       stack.push({ ctx: drawBottomRight(ctx, toColor(br)), t: br });
     } else {
+      // TODO: could we risk gnfing here?
       drawAt(ctx.x, ctx.y, toColor(t));
     }
   }
