@@ -8,7 +8,7 @@ information.
 
 -   WebGL for drawing the squares
 -   1 Webworker for handling paint requests
--   single-threaded reduction via randomized stack popping (see
+-   single-threaded reduction (see
     [4fa7012](https://github.com/marvinborner/lambda-screen/tree/4fa7012e03e09fa62bd0080f2c7bfbf02b00a6ca)
     for an implementation using 4 parallel reduction workers; they
     crashed firefox consistently)

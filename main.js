@@ -290,7 +290,7 @@ let depth = 0;
 let canceled = false;
 const cancelReduction = () => {
   if (depth++ > MAX && !canceled) {
-    MAX **= 1.4;
+    MAX **= 1.3;
     if (
       !confirm(
         `This takes awfully long (${depth} steps!). The reduction potentially won't converge to a valid screen (or at all!). Do you want to continue?\nWarning: This might crash your browser!`,
@@ -465,11 +465,11 @@ const reduceLoop = (worker, root, _t) => {
   const stack = [{ ctx: root, t: _t }];
   for (let i = 0; stack.length > 0; i++) {
     // console.log(i, stack.length);
-    let [{ ctx, t }] = stack.splice(
-      Math.floor(Math.random() * stack.length),
-      1,
-    );
-    // let { ctx, t } = stack.shift();
+    // let [{ ctx, t }] = stack.splice(
+    //   Math.floor(Math.random() * stack.length),
+    //   1,
+    // );
+    let { ctx, t } = stack.shift();
     // let { ctx, t } = stack.pop();
 
     // TODO: priority queue on context size
@@ -495,7 +495,7 @@ const reduceLoop = (worker, root, _t) => {
     }
 
     // smaller resolutions apparently crash the browser tab lol
-    if (ctx.x[1] - ctx.x[0] < 2) continue;
+    if (ctx.x[1] - ctx.x[0] < MAXRES) continue;
 
     if (seemsScreeny(t)) {
       const tl = t.body.left.left.left.right;
