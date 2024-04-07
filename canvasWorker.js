@@ -85,6 +85,20 @@ self.onmessage = (msg) => {
     draw = initGL();
   } else {
     [color, x, y, width, height] = msg.data;
+    if (width < 2 || height < 2) return;
     draw([x, y + height, x + width, y + height, x + width, y, x, y], color);
   }
 };
+
+// self.onmessage = (msg) => {
+//   if (msg.data == "clear") {
+//     gl.clearRect(0, 0, canvas.width, canvas.height);
+//   } else if ("canvas" in msg.data) {
+//     canvas = msg.data.canvas;
+//     gl = canvas.getContext("2d");
+//   } else {
+//     [color, x, y, width, height] = msg.data;
+//     gl.fillStyle = color;
+//     gl.fillRect(x, y, width, height);
+//   }
+// };
