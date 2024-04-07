@@ -85,7 +85,6 @@ self.onmessage = (msg) => {
     draw = initGL();
   } else {
     [color, x, y, width, height] = msg.data;
-    if (width < 2 || height < 2) return;
     draw([x, y + height, x + width, y + height, x + width, y, x, y], color);
   }
 };
@@ -98,6 +97,7 @@ self.onmessage = (msg) => {
 //     gl = canvas.getContext("2d");
 //   } else {
 //     [color, x, y, width, height] = msg.data;
+//     if (width < 2 || height < 2) return;
 //     gl.fillStyle = color;
 //     gl.fillRect(x, y, width, height);
 //   }
