@@ -1,0 +1,63 @@
+:import std/Combinator .
+:import Screen .
+
+# stable
+s w
+
+a-sierpinski0 [build w w w w]
+
+a-sierpinski1 [build tl tr bl br]
+	tl build w w w (build w s s b)
+	tr build w w (build s w b s) w
+	bl build w (build s b w s) w w
+	br build (build b s s w) w w w
+
+a-sierpinski2 [build tl tr bl br]
+	tl build tl tr bl br
+		tl build w w w (build w s s b)
+		tr build w w (build s w b s) w
+		bl build w (build s b w s) w w
+		br build (build b s s w) s s b
+	tr build tl tr bl br
+		tl build w w w (build w s s b)
+		tr build w w (build s w b s) w
+		bl build s (build s b w s) b s
+		br build (build b s s w) w w w
+	bl build tl tr bl br
+		tl build w w w (build w s s b)
+		tr build s b (build s w b s) s
+		bl build w (build s b w s) w w
+		br build (build b s s w) w w w
+	br build tl tr bl br
+		tl build b s s (build w s s b)
+		tr build w w (build s w b s) w
+		bl build w (build s b w s) w w
+		br build (build b s s w) w w w
+
+b-sierpinski0 y [gen]
+	gen qsplit → color
+		color &[[[[[0 (5 (tl 4)) (5 (tr 3)) (5 (bl 2)) (5 (br 1))]]]]]
+			tl &[[[[[0 4 3 2 b]]]]]
+			tr &[[[[[0 4 3 b 1]]]]]
+			bl &[[[[[0 4 b 2 1]]]]]
+			br &[[[[[0 b 3 2 1]]]]]
+
+:import std/List .
+
+b-sierpinski1 color
+	color [[build tl tr bl br] mut]
+		mut y* ([[[[build 3 2 1 b]]]] : ([[[[build 3 2 b 0]]]] : ([[[[build 3 b 1 0]]]] : {}[[[[build b 2 1 0]]]])))
+		tl ^0
+		tr ^(~0)
+		bl ^(~(~0))
+		br ^(~(~(~0)))
+
+:import std/Number .
+
+b-sierpinskin y [[[=?1 0 (gen 0)]]] (+7)
+	gen qsplit → color
+		color &[[[[[0 (7 --6 (tl 4)) (7 --6 (tr 3)) (7 --6 (bl 2)) (7 --6 (br 1))]]]]]
+			tl &[[[[[0 4 3 2 b]]]]]
+			tr &[[[[[0 4 3 b 1]]]]]
+			bl &[[[[[0 4 b 2 1]]]]]
+			br &[[[[[0 b 3 2 1]]]]]
