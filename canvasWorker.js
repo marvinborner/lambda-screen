@@ -28,7 +28,7 @@ const initGL = () => {
   attribute vec2 a_position;
   uniform vec2 u_resolution;
   void main() {
-	vec2 inverted = vec2(a_position.x, u_resolution.y - a_position.y - 1.0); // !! :)
+	vec2 inverted = vec2(a_position.x, u_resolution.y - a_position.y); // !! :)
     vec2 zeroToOne = inverted / u_resolution;
     vec2 zeroToTwo = zeroToOne * 2.0;
 	vec2 clipSpace = zeroToTwo - 1.0;

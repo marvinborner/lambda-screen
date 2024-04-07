@@ -9,6 +9,7 @@ t-square-1 [[build tl tr bl br] mut]
 	bl ^(~(~0))
 	br ^(~(~(~0)))
 
+# TODO: 1/2
 t-square-2 [[build tl tr bl br] mut]
 	mut y* ([[[[build 3 2 1 (build b w w b)]]]] : ([[[[build 3 2 (build w b b w) 0]]]] : ([[[[build 3 (build w b b w) 1 0]]]] : {}[[[[build (build b w w b) 2 1 0]]]])))
 	tl ^0
@@ -24,3 +25,9 @@ sierpinski-carpet [[build tl tr bl br] mut]
 	br ^(~(~(~0)))
 
 sierpinski-triangle [y [build 0 b 0 0]]
+
+cantor-dust [y [build tl tr bl br]]
+	tl [[0 1 1 1 1]] (build 0 b b b)
+	tr [[0 1 1 1 1]] (build b 0 b b)
+	bl [[0 1 1 1 1]] (build b b 0 b)
+	br [[0 1 1 1 1]] (build b b b 0)

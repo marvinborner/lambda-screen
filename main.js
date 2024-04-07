@@ -1,3 +1,5 @@
+let MAXRES = 2;
+
 let errors = [];
 const error = (s) => {
   errors.push(s);
@@ -461,7 +463,7 @@ const snf = (_t) => {
 
 const reduceLoop = (worker, root, _t) => {
   const stack = [{ ctx: root, t: _t }];
-  for (let i = 0; stack.length > 0 && i < 4 ** 10; i++) {
+  for (let i = 0; stack.length > 0; i++) {
     // console.log(i, stack.length);
     let [{ ctx, t }] = stack.splice(
       Math.floor(Math.random() * stack.length),
@@ -480,6 +482,10 @@ const reduceLoop = (worker, root, _t) => {
     try {
       t = snf(t);
     } catch (e) {
+      if (e.message == "too much recursion")
+        error(
+          "your term most probably has some logical error (e.g. by not converging to a screen); if not, lmk",
+        );
       error(e);
       return null;
     }
@@ -502,23 +508,7 @@ const reduceLoop = (worker, root, _t) => {
       stack.push({ ctx: drawBottomRight(worker, ctx, toColor(br)), t: br });
     } else {
       // TODO: could we risk gnfing here?
-      drawAt(ctx.x, ctx.y, toColor(t));
+      drawAt(worker, ctx.x, ctx.y, toColor(t));
     }
   }
 };
-
-/* interface */
-
-// window.reductionMode.addEventListener("change", () => {
-//   const state = window.reductionMode.value;
-//   if (state === "auto") {
-//     window.slider.disabled = true;
-//     window.slider.style.opacity = 0;
-//   } else if (state === "slider") {
-//     window.slider.disabled = false;
-//     window.slider.style.opacity = 100;
-//   } else if (state === "click") {
-//     window.slider.disabled = true;
-//     window.slider.style.opacity = 0;
-//   }
-// });
