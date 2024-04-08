@@ -80,7 +80,30 @@ y = \(\(1 (0 0)) \(1 (0 0)))
             >
               Cantor dust
             </option>
-            <option value="">Vicsek saltire</option>
+            <option
+              value="-- some common definitions for copy-pasting
+w = \\1
+b = \\0
+isw = \0
+isb = \((0 b) w)
+invert = \\\((2 0) 1)
+build = \\\\\((((0 4) 3) 2) 1)
+empty = ((((build b) b) b) b)
+tl = \\\\3
+tr = \\\\2
+bl = \\\\1
+br = \\\\0
+get = \\(0 1)
+settl = \\(1 \\\\\((((0 5) 3) 2) 1))
+settr = \\(1 \\\\\((((0 4) 5) 2) 1))
+setbl = \\(1 \\\\\((((0 4) 3) 5) 1))
+setbr = \\(1 \\\\\((((0 4) 3) 2) 5))
+map = \\(0 \\\\\((((0 (6 4)) (6 3)) (6 2)) (6 1)))
+qsplit = \(0 \\\\\((((0 ((4 \((((0 \\1) \\1) \\1) \\1)) \((((0 \\0) \\0) \\0) \\0))) ((3 \((((0 \\1) \\1) \\1) \\1)) \((((0 \\0) \\0) \\0) \\0))) ((2 \((((0 \\1) \\1) \\1) \\1)) \((((0 \\0) \\0) \\0) \\0))) ((1 \((((0 \\1) \\1) \\1) \\1)) \((((0 \\0) \\0) \\0) \\0))))
+\0"
+            >
+              Template
+            </option>
           </select>
         </div>
         <span id="error"></span>
@@ -93,6 +116,25 @@ y = \(\(1 (0 0)) \(1 (0 0)))
         ></textarea>
       </div>
       <button id="render">Render!</button>
+      <footer>
+        <ul>
+          <li>
+            <a
+              href="https://text.marvinborner.de/2024-03-25-02.html"
+              target="_blank"
+              >Blog post</a
+            >
+          </li>
+          <li><a href="javascript:helpSyntax()">Syntax</a></li>
+          <li>
+            <a
+              href="https://github.com/marvinborner/lambda-screen"
+              target="_blank"
+              >Source-code</a
+            >
+          </li>
+        </ul>
+      </footer>
     </main>
     <script src="main.js"></script>
     <script charset="utf-8">

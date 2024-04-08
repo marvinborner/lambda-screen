@@ -151,18 +151,19 @@ const parseLam = (str) => {
     case "λ":
     case "\\":
     case "[": // bruijn
-      const [body, _tail] = parseLam(tail);
-      return [abs(body), head == "[" ? _tail.slice(1) : _tail];
+      const [body, _tail] = parseLam(tail.trim());
+      return [abs(body), head == "[" ? _tail.trim().slice(1) : _tail.trim()];
     case "(":
       const [left, tail1] = parseLam(tail);
-      const [right, tail2] = parseLam(tail1.slice(1));
-      return [app(left)(right), tail2.slice(1)];
+      const [right, tail2] = parseLam(tail1.trim());
+      return [app(left)(right), tail2.trim().slice(1)];
     case ")":
     case "]":
       error("in parseLam");
       return [];
     default:
-      if (str[0] >= "a" && str[0] <= "z") {
+      if (head == " ") return parseLam(tail);
+      if (head >= "a" && head <= "z") {
         // substitution
         let name = "";
         while (str && str[0] >= "a" && str[0] <= "z") {
@@ -436,7 +437,6 @@ const snf = (_t) => {
   if (t.body.type === "abs") return gnf(t); // not a screen, probably a pixel
 
   while (t !== null && !seemsScreeny(t)) {
-    // TODO: a bit unsure about this
     switch (t.type) {
       case "app":
         const _left = whnf(t.left);
@@ -512,3 +512,9 @@ const reduceLoop = (worker, root, _t) => {
     }
   }
 };
+
+function helpSyntax() {
+  alert(
+    "The syntax uses standard notations for de Bruijn indexed lambda calculus. The de Bruijn indices start at 0. You can use `\\`, `λ`, or `[..]` for abstractions. Applications use parenthesis and currently do *not* assume left associativity by default. All terms can also be replaced by a string of binary lambda calculus (BLC) - useful if you're not comfortable with de Bruijn indices (e.g. by using John Tromp's `lam` compiler).\nYou can define substitutions (like in the presets) using `=`.\n\nHave fun!",
+  );
+}

@@ -55,6 +55,27 @@ span#error {
     color: red;
 }
 
+footer {
+    position: fixed;
+    bottom: 0;
+    text-align: center;
+}
+
+footer a {
+    text-decoration: none;
+    color: black;
+}
+
+footer > ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+footer > ul > li {
+    display: inline;
+    margin: 0 8px;
+}
+
 .inputWrap {
     display: block;
     margin: 0 auto;
