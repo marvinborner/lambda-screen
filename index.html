@@ -138,12 +138,19 @@ qsplit = \(0 \\\\\((((0 ((4 \((((0 \\1) \\1) \\1) \\1)) \((((0 \\0) \\0) \\0) \\
     </main>
     <script src="main.js"></script>
     <script charset="utf-8">
+      let useWebGL = true;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        useWebGL = false;
+        MAXRES = 10;
+      }
+
       const canvas = window.canvas;
       const root = { x: [0, canvas.width], y: [0, canvas.height] };
 
       const offscreen = canvas.transferControlToOffscreen();
       const worker = new Worker("canvasWorker.js");
-      worker.postMessage({ canvas: offscreen }, [offscreen]);
+      worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
 
       window.examples.addEventListener("change", () => {
         clearScreen(worker);

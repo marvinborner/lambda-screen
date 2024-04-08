@@ -19,11 +19,7 @@ const UNKNOWN = 2;
 
 const drawAt = (worker, x, y, color) => {
   worker.postMessage([
-    color == WHITE
-      ? [1, 1, 1, 1]
-      : color == BLACK
-        ? [0, 0, 0, 1]
-        : [0.1, 0.1, 0.1, 0.3],
+    color == WHITE ? "white" : color == BLACK ? "black" : "grey",
     x[0],
     y[0],
     x[1] - x[0],

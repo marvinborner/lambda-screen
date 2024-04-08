@@ -72,33 +72,43 @@ const initGL = () => {
   };
 };
 
+let useWebGL = true;
+
 let draw;
 self.onmessage = (msg) => {
   if (msg.data == "clear") {
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    if (useWebGL) {
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    } else {
+      gl.clearRect(0, 0, canvas.width, canvas.height);
+    }
   } else if ("canvas" in msg.data) {
     canvas = msg.data.canvas;
-    gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
-    if (!gl) alert("no webgl");
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    draw = initGL();
+    useWebGL = msg.data.useWebGL;
+    if (useWebGL) {
+      console.log("using WebGL");
+      gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
+      if (!gl) return self.onmessage({ canvas, useWebGL: false });
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      draw = initGL();
+    } else {
+      console.log("using canvas");
+      gl = canvas.getContext("2d");
+    }
+  } else if (useWebGL) {
+    const [color, x, y, width, height] = msg.data;
+    let colorArr =
+      color == "white"
+        ? [1, 1, 1, 1]
+        : color == "black"
+          ? [0, 0, 0, 1]
+          : [0.1, 0.1, 0.1, 0.3];
+    draw([x, y + height, x + width, y + height, x + width, y, x, y], colorArr);
   } else {
-    [color, x, y, width, height] = msg.data;
-    draw([x, y + height, x + width, y + height, x + width, y, x, y], color);
+    const [color, x, y, width, height] = msg.data;
+    if (width < 4 || height < 4) return;
+    gl.fillStyle = color;
+    gl.fillRect(x, y, width, height);
   }
 };
-
-// self.onmessage = (msg) => {
-//   if (msg.data == "clear") {
-//     gl.clearRect(0, 0, canvas.width, canvas.height);
-//   } else if ("canvas" in msg.data) {
-//     canvas = msg.data.canvas;
-//     gl = canvas.getContext("2d");
-//   } else {
-//     [color, x, y, width, height] = msg.data;
-//     if (width < 2 || height < 2) return;
-//     gl.fillStyle = color;
-//     gl.fillRect(x, y, width, height);
-//   }
-// };
