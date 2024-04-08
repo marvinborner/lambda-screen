@@ -154,14 +154,27 @@ qsplit = \(0 \\\\\((((0 ((4 \((((0 \\1) \\1) \\1) \\1)) \((((0 \\0) \\0) \\0) \\
         clearScreen(worker);
         clearErrors();
         console.time("reduceLoop");
-        reduceLoop(
-          worker,
-          root,
-          app(parse(window.term.value))(
-            parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)"),
-          ),
-        );
-        console.timeEnd("reduceLoop");
+        window.render.disabled = true;
+        window.render.textContent = "Rendering...";
+
+        // button doesn't update text without timeout
+        setTimeout(() => {
+          try {
+            reduceLoop(
+              worker,
+              root,
+              app(parse(window.term.value))(
+                parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)"),
+              ),
+            );
+          } catch (e) {
+            console.error(e);
+          } finally {
+            window.render.textContent = "Render!";
+            window.render.disabled = false;
+            console.timeEnd("reduceLoop");
+          }
+        }, 0);
       });
     </script>
   </body>
