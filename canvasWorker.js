@@ -88,11 +88,26 @@ self.onmessage = (msg) => {
     useWebGL = msg.data.useWebGL;
     if (useWebGL) {
       console.log("using WebGL");
-      gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
-      if (!gl) return self.onmessage({ canvas, useWebGL: false });
+      // i hate this
+      try {
+        gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
+        if (!gl)
+          gl = canvas.getContext("experimental-webgl", {
+            preserveDrawingBuffer: true,
+          });
+      } catch (e) {
+      } finally {
+        if (!gl) {
+          console.error("WebGL not supported, using canvas instead.");
+          useWebGL = false;
+          gl = canvas.getContext("2d");
+          return;
+        }
+      }
       gl.viewport(0, 0, canvas.width, canvas.height);
       draw = initGL();
     } else {
+      useWebGL = false;
       console.log("using canvas");
       gl = canvas.getContext("2d");
     }
