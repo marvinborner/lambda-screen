@@ -139,10 +139,11 @@ qsplit = \(0 \\\\\((((0 ((4 \((((0 \\1) \\1) \\1) \\1)) \((((0 \\0) \\0) \\0) \\
     <script src="main.js"></script>
     <script charset="utf-8">
       let useWebGL = true;
-      const isWeird = /iPhone|iPad|iPod|Android|AppleWebKit/i.test(
+      const isPhone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(
         navigator.userAgent,
       );
-      if (isWeird) {
+      if (isPhone || isSafari) {
         useWebGL = false;
         MAXRES = 3;
       }
