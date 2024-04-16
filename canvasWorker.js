@@ -112,13 +112,8 @@ self.onmessage = (msg) => {
       gl = canvas.getContext("2d");
     }
   } else if (useWebGL) {
-    const [color, x, y, width, height] = msg.data;
-    let colorArr =
-      color == "white"
-        ? [1, 1, 1, 1]
-        : color == "black"
-          ? [0, 0, 0, 1]
-          : [0.1, 0.1, 0.1, 0.3];
+    const [[r, g, b], x, y, width, height] = msg.data;
+    let colorArr = [r / 255, g / 255, b / 255, 1.0];
     draw([x, y + height, x + width, y + height, x + width, y, x, y], colorArr);
   } else {
     const [color, x, y, width, height] = msg.data;

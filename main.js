@@ -13,13 +13,12 @@ const clearErrors = () => {
 
 /* canvas */
 
-const WHITE = 0;
-const BLACK = 1;
-const UNKNOWN = 2;
+const UNKNOWN = -1;
+const COLORED = 1;
 
 const drawAt = (worker, x, y, color) => {
   worker.postMessage([
-    color == WHITE ? "white" : color == BLACK ? "black" : "grey",
+    color == UNKNOWN ? [0xa, 0xa, 0xa] : color,
     x[0],
     y[0],
     x[1] - x[0],
@@ -255,15 +254,38 @@ const parse = (str) => {
 
 /* lambda screen */
 
-// [[1]]=w, [[0]]=b, other=g
+// helper function
+const rgbToTerm = (b, c) => {
+  const s = [...c.toString(b)];
+  let t = s.slice(1).reduce((a, n) => app(a)(idx(+n)), idx(+s[0]));
+  for (let i = 0; i < b; i++) t = abs(t);
+  return t;
+};
+
+// λ^n(x_n .. x_0)
 const toColor = (t) => {
-  if (t.type === "abs" && t.body.type === "abs" && t.body.body.type === "idx")
-    return t.body.body.idx === 1
-      ? WHITE
-      : t.body.body.idx === 0
-        ? BLACK
-        : UNKNOWN;
-  return UNKNOWN;
+  let base = 0;
+  while (t.type == "abs") {
+    t = t.body;
+    base++;
+  }
+
+  let n = 0;
+  let i = 0;
+  while (1) {
+    if (t.type == "abs") return UNKNOWN;
+
+    if (t.type == "app") {
+      if (t.right.type != "idx") return UNKNOWN;
+      n += t.right.idx * base ** i++;
+      t = t.left;
+      continue;
+    }
+    if (t.type != "idx") return UNKNOWN;
+    n += t.idx * base ** i++;
+    break;
+  }
+  return [(n & 0xff0000) >> 16, (n & 0x00ff00) >> 8, n & 0x0000ff];
 };
 
 // [((((0 tl) tr) bl) br)]
