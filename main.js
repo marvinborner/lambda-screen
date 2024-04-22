@@ -18,7 +18,7 @@ const COLORED = 1;
 
 const drawAt = (worker, x, y, color) => {
   worker.postMessage([
-    color == UNKNOWN ? [0xa, 0xa, 0xa] : color,
+    color == UNKNOWN ? [0x80, 0x80, 0x80] : color,
     x[0],
     y[0],
     x[1] - x[0],
@@ -285,6 +285,7 @@ const toColor = (t) => {
     n += t.idx * base ** i++;
     break;
   }
+
   return [(n & 0xff0000) >> 16, (n & 0x00ff00) >> 8, n & 0x0000ff];
 };
 
