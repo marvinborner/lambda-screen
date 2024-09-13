@@ -9,7 +9,7 @@ t-square-1 [[build tl tr bl br] mut]
 	bl ^(~(~0))
 	br ^(~(~(~0)))
 
-# TODO: 1/2
+# TODO: 1/2??
 t-square-2 [[build tl tr bl br] mut]
 	mut y* ([[[[build 3 2 1 (build b w w b)]]]] : ([[[[build 3 2 (build w b b w) 0]]]] : ([[[[build 3 (build w b b w) 1 0]]]] : {}[[[[build (build b w w b) 2 1 0]]]])))
 	tl ^0
@@ -17,12 +17,24 @@ t-square-2 [[build tl tr bl br] mut]
 	bl ^(~(~0))
 	br ^(~(~(~0)))
 
-sierpinski-carpet [[build tl tr bl br] mut]
+t-square-3 [[0 0] [[0 (1 1 0)]] [[0 (1 tl) (1 tr) (1 bl) (1 br)]]]
+	tl [[[[[0 4 3 2 b]]]]]
+	tr [[[[[0 4 3 b 1]]]]]
+	bl [[[[[0 4 b 2 1]]]]]
+	br [[[[[0 b 3 2 1]]]]]
+
+sierpinski-carpet-1 [[build tl tr bl br] mut]
 	mut y* ([[[[build 3 2 1 (build (build b w w w) w w b)]]]] : ([[[[build 3 2 (build w (build w b w w) b w) 0]]]] : ([[[[build 3 (build w b (build w w b w) w) 1 0]]]] : {}[[[[build (build b w w (build w w w b)) 2 1 0]]]])))
 	tl ^0
 	tr ^(~0)
 	bl ^(~(~0))
 	br ^(~(~(~0)))
+
+sierpinski-carpet-2 [[0 0] [[0 (1 1 0)]] [[0 (1 tl) (1 tr) (1 bl) (1 br)]]]
+	tl [[[[build 3 2 1 (build (build b w w w) w w b)]]]]
+	tr [[[[build 3 2 (build w (build w b w w) b w) 0]]]]
+	bl [[[[build 3 (build w b (build w w b w) w) 1 0]]]]
+	br [[[[build (build b w w (build w w w b)) 2 1 0]]]]
 
 sierpinski-triangle [y [build 0 b 0 0]]
 
