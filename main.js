@@ -241,7 +241,7 @@ const parse = (str) => {
     .trim()
     .split(/\r?\n/)
     .every((line) => {
-      if (line.startsWith("--") || line.length == 0) return true;
+      if (line.startsWith("--") || line.length === 0) return true;
       if (!line.includes("=")) {
         t = resolveTerm(parseTerm(line), defs);
         return false;
