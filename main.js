@@ -137,6 +137,20 @@ const isOpen = (t) => {
 };
 
 const parseLam = (str) => {
+  // default to left-associative application
+  const folded = (s) => {
+    const init = parseLam(s);
+    if (!init[1] || ")]".includes(init[1][0])) return init;
+
+    const go = (acc, rst) => {
+      const parsed = parseLam(rst);
+      const chain = app(acc)(parsed[0]);
+      if (!parsed[1] || ")]".includes(parsed[1][0])) return [chain, parsed[1]];
+      return go(chain, parsed[1]);
+    };
+    return go(init[0], init[1]);
+  };
+
   if (!str) {
     error("in parseLam");
     return [{}, ""];
@@ -148,17 +162,19 @@ const parseLam = (str) => {
     case "\\":
     case "[": // bruijn
       const [body, _tail] = parseLam(tail.trim());
-      return [abs(body), head == "[" ? _tail.trim().slice(1) : _tail.trim()];
+      return [
+        abs(body),
+        head == "[" ? _tail.trim().slice(1).trim() : _tail.trim(),
+      ];
     case "(":
-      const [left, tail1] = parseLam(tail);
-      const [right, tail2] = parseLam(tail1.trim());
-      return [app(left)(right), tail2.trim().slice(1)];
+      const [chain, _tail1] = folded(tail.trim());
+      return [chain, _tail1.trim().slice(1).trim()];
     case ")":
     case "]":
       error("in parseLam");
       return [];
     default:
-      if (head == " ") return parseLam(tail);
+      if (head == " ") return folded(tail);
       if (head >= "a" && head <= "z") {
         // substitution
         let name = "";
@@ -166,7 +182,7 @@ const parseLam = (str) => {
           name += str[0];
           str = str.slice(1);
         }
-        return [def(name), str];
+        return [def(name), str.trim()];
       } else {
         // de Bruijn index
         let num = "";
@@ -174,7 +190,7 @@ const parseLam = (str) => {
           num += str[0];
           str = str.slice(1);
         }
-        return [idx(parseInt(num)), str];
+        return [idx(parseInt(num)), str.trim()];
       }
   }
 };
@@ -511,6 +527,6 @@ const reduceLoop = (worker, root, _t) => {
 
 function helpSyntax() {
   alert(
-    "The syntax uses standard notations for de Bruijn indexed lambda calculus. The de Bruijn indices start at 0. You can use `\\`, `λ`, or `[..]` for abstractions. Applications use parenthesis and currently do *not* assume left associativity by default. All terms can also be replaced by a string of binary lambda calculus (BLC) - useful if you're not comfortable with de Bruijn indices (e.g. by using John Tromp's `lam` compiler).\nYou can define substitutions (like in the presets) using `=`.\n\nHave fun!",
+    "The syntax uses standard notations for de Bruijn indexed lambda calculus. The de Bruijn indices start at 0. You can use `\\`, `λ`, or `[..]` for abstractions. Applications use parenthesis and assume left associativity by default. All terms can also be replaced by a string of binary lambda calculus (BLC) - useful if you're not comfortable with de Bruijn indices (e.g. by using John Tromp's `lam` compiler).\nYou can define substitutions (like in the presets) using `=`.\n\nHave fun!",
   );
 }
