@@ -58,6 +58,16 @@ br = (y \\(0 1 \\0 \\0 1))
               Lambda
             </option>
             <option
+              value="y = \(\(0 0) \(1 (0 0)))
+tl = (y \\(0 1 \\0 \\1 1))
+tr = (y \\(0 1 \\1 \\0 1))
+bl = (y \\(0 \\1 1 1 \\0))
+br = (y \\(0 \\0 1 1 \\1))
+\\(0 tl tr bl br)"
+            >
+              Arrow
+            </option>
+            <option
               value="-- note how no white gets drawn since the highlighted parts would be infinitely detailed
 y = \(\(0 0) \(1 (0 0)))
 \(y \\(0 1 \\0 1 1))"
@@ -162,6 +172,23 @@ y = \(\(0 0) \(1 (0 0)))
 \(y \\(0 (quad \(0 2 s s s)) (quad \(0 s 2 s s)) (quad \(0 s s 2 s)) (quad \(0 s s s 2))))"
             >
               Cantor dust
+            </option>
+            <option
+              value="y = \(\(0 0) \(1 (0 0)))
+
+stl = \\\\\(0 \\1 3 2 1)
+str = \\\\\(0 4 \\1 2 1)
+sbl = \\\\\(0 4 3 \\1 1)
+sbr = \\\\\(0 4 3 2 \\1)
+sf = (y \\(0 (1 stl) (1 str) (1 sbl) (1 sbr)))
+
+tl = \(0 \\1 (y \\(0 \\1 1 1 \\0)) \\1 (y \\(0 \(0 \\1 sf \\1 \\1) 1 1 \\0)))
+tr = \(0 (y \\(0 1 \\1 \\0 1)) \\1 (y \\(0 1 \(0 sf \\1 \\1 \\1) \\0 1)) \\1)
+bl = \(0 \\1 (y \\(0 \(0 sf \\1 \\1 \\1) 1 1 \\0)) \\1 \(0 \(0 \\1 sf \\1 \\1) \(0 \\1 \\0 \\1 \\0) \\1 \(0 \\1 \\0 \\1 \\0)))
+br = \(0 (y \\(0 1 \(0 \\1 sf \\1 \\1) \\0 1)) \\1 \(0 \(0 \\0 \\1 \\0 \\1) \(0 \\1 sf \\1 \\1) \(0 \\0 \\1 \\0 \\1) \\1) \\1)
+\\(0 tl tr bl br)"
+            >
+              Christmas tree
             </option>
             <option
               value="y = \(\(0 0) \(1 (0 0)))
