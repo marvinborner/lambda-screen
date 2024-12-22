@@ -238,20 +238,15 @@ const substDef = (i, t, n) => {
 
 const resolveTerm = (_t, defs) => {
   if (_t === null) return null;
+
   let final = _t;
-  let len = Object.keys(defs).length;
-  for (let i = len; i > 0; i--) {
-    final = abs(final);
-  }
-  let d = len;
-  Object.entries(defs).forEach(([n, t]) => {
-    final = app(substDef(--d - len, final, n))(t);
-  });
+  for (let def of defs.reverse())
+    final = app(abs(substDef(0, final, def[0])))(def[1]);
   return final;
 };
 
 const parse = (str) => {
-  const defs = {};
+  const defs = [];
   let t;
   str
     .trim()
@@ -259,13 +254,14 @@ const parse = (str) => {
     .every((line) => {
       if (line.startsWith("--") || line.length === 0) return true;
       if (!line.includes("=")) {
-        t = resolveTerm(parseTerm(line), defs);
+        t = parseTerm(line);
         return false;
       }
       [n, _t] = line.split("=");
-      defs[n.trim()] = resolveTerm(parseTerm(_t.trim()), defs);
+      defs.push([n.trim(), parseTerm(_t.trim())]);
       return true;
     });
+  t = resolveTerm(t, defs);
   return t;
 };
 
