@@ -302,12 +302,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
       const worker = new Worker("canvasWorker.js");
       worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
 
-      window.examples.addEventListener("change", () => {
-        clearScreen(worker);
-        window.term.value = window.examples.value;
-      });
-
-      window.render.addEventListener("click", () => {
+      const render = (t) => {
         clearScreen(worker);
         clearErrors();
         console.time("reduceLoop");
@@ -320,9 +315,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
             reduceLoop(
               worker,
               root,
-              app(parse(window.term.value))(
-                parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)"),
-              ),
+              app(t)(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
             );
           } catch (e) {
             console.error(e);
@@ -332,6 +325,25 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
             console.timeEnd("reduceLoop");
           }
         }, 0);
+      };
+
+      const params = new URL(window.location.href);
+      if (params.searchParams.has("term")) {
+        const t = parseBLC(decodeBase64(params.searchParams.get("term")))[0];
+        window.term.innerText = show(t);
+        render(t);
+      }
+
+      window.examples.addEventListener("change", () => {
+        clearScreen(worker);
+        window.term.value = window.examples.value;
+      });
+
+      window.render.addEventListener("click", () => {
+        const t = parse(window.term.value);
+        render(t);
+        params.searchParams.set("term", encodeBase64(t));
+        window.history.pushState({ path: params.href }, "", params.href);
       });
     </script>
   </body>

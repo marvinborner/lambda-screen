@@ -104,6 +104,65 @@ const def = (name) => {
   return t;
 };
 
+const decodeBase64 = (enc) => {
+  const dec = atob(enc);
+  let bits = "";
+  for (let i = 0; i < dec.length; i++) {
+    const byte = dec.charCodeAt(i);
+    for (let j = 7; j >= 0; j--) {
+      const bit = (byte >> j) & 1;
+      bits += bit === 1 ? "1" : "0";
+    }
+  }
+  return bits;
+};
+
+const encodeBase64 = (t) => {
+  const bin = (_t) => {
+    if (_t === null) return [];
+    switch (_t.type) {
+      case "abs":
+        return [...[0, 0], ...bin(_t.body)];
+      case "app":
+        return [...[0, 1], ...bin(_t.left), ...bin(_t.right)];
+      case "idx":
+        let s = [];
+        for (let i = 0; i < _t.idx + 1; i++) s.push(1);
+        s.push(0);
+        return s;
+      case "def":
+        error("unexpected def");
+        return [];
+    }
+  };
+
+  const bits = bin(t);
+  while (bits.length % 8 !== 0) bits.push(0);
+
+  let res = "";
+  for (let i = 0; i < bits.length; i += 8) {
+    let byte = 0;
+    for (let j = 0; j < 8; j++) if (bits[i + j]) byte |= 1 << (7 - j);
+    res += String.fromCharCode(byte);
+  }
+  return btoa(res);
+};
+
+const size = (t) => {
+  if (t === null) return 0;
+  switch (t.type) {
+    case "abs":
+      return 2 + size(t.body);
+    case "app":
+      return 2 + size(t.left) + size(t.right);
+    case "idx":
+      return t.idx + 2;
+    case "def":
+      error("unexpected def");
+      return 0;
+  }
+};
+
 const show = (t) => {
   if (t === null) return "";
   switch (t.type) {
@@ -470,8 +529,9 @@ const snf = (_t) => {
 };
 
 const reduceLoop = (worker, root, _t) => {
+  console.log("BLC size:", size(_t));
   const stack = [{ ctx: root, t: _t }];
-  for (let i = 0; stack.length > 0; i++) {
+  for (let i = 0; stack.length > 0 && !canceled; i++) {
     // console.log(i, stack.length);
     // let [{ ctx, t }] = stack.splice(
     //   Math.floor(Math.random() * stack.length),
