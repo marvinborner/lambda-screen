@@ -25,21 +25,21 @@ const createProgram = (gl, vertexShader, fragmentShader) => {
 
 const initGL = () => {
   const vertexShaderSource = `
-  attribute vec2 a_position;
-  uniform vec2 u_resolution;
-  void main() {
-	vec2 inverted = vec2(a_position.x, u_resolution.y - a_position.y); // !! :)
-    vec2 zeroToOne = inverted / u_resolution;
-    vec2 zeroToTwo = zeroToOne * 2.0;
-	vec2 clipSpace = zeroToTwo - 1.0;
-    gl_Position = vec4(clipSpace, 0, 1);
-  }`;
+    attribute vec2 a_position;
+    uniform vec2 u_resolution;
+    void main() {
+      vec2 inverted = vec2(a_position.x, u_resolution.y - a_position.y); // !! :)
+      vec2 zeroToOne = inverted / u_resolution;
+      vec2 zeroToTwo = zeroToOne * 2.0;
+      vec2 clipSpace = zeroToTwo - 1.0;
+      gl_Position = vec4(clipSpace, 0, 1);
+    }`;
   const fragmentShaderSource = `
-  precision mediump float;
-  uniform vec4 u_color;
-  void main() {
-    gl_FragColor = u_color;
-  }`;
+    precision mediump float;
+    uniform vec4 u_color;
+    void main() {
+      gl_FragColor = u_color;
+    }`;
 
   const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
   const fragmentShader = createShader(
@@ -130,19 +130,51 @@ self.onmessage = (msg) => {
       console.log("using canvas");
       gl = canvas.getContext("2d");
     }
-  } else if (useWebGL) {
-    const [color, x, y, width, height] = msg.data;
-    let colorArr =
-      color == "white"
-        ? [1, 1, 1, 1]
-        : color == "black"
-          ? [0, 0, 0, 1]
-          : [0.1, 0.1, 0.1, 0.3];
-    draw([x, y + height, x + width, y + height, x + width, y, x, y], colorArr);
+  } else if ("drawAt" in msg.data) {
+    const [color, x, y, width, height] = msg.data.drawAt;
+    if (useWebGL) {
+      let colorArr =
+        color == "white"
+          ? [1, 1, 1, 1]
+          : color == "black"
+            ? [0, 0, 0, 1]
+            : [0.1, 0.1, 0.1, 0.3];
+      draw(
+        [x, y + height, x + width, y + height, x + width, y, x, y],
+        colorArr,
+      );
+    } else {
+      if (width < 3 || height < 3) return;
+      gl.fillStyle = color;
+      gl.fillRect(x, y, width, height);
+    }
+  } else if ("drawScreen" in msg.data) {
+    const [colors, xys] = msg.data.drawScreen;
+    if (useWebGL) {
+      let colorArrs = colors.map((color) =>
+        color == "white"
+          ? [1, 1, 1, 1]
+          : color == "black"
+            ? [0, 0, 0, 1]
+            : [0.1, 0.1, 0.1, 0.3],
+      );
+      // @JsDevs WHERE ZIP FUNCTION
+      let i = 0;
+      xys.forEach(([x, y, width, height]) =>
+        draw(
+          [x, y + height, x + width, y + height, x + width, y, x, y],
+          colorArrs[i++],
+        ),
+      );
+    } else {
+      let i = 0;
+      xys.forEach(([x, y, width, height]) => {
+        if (width < 3 || height < 3) return;
+        gl.fillStyle = colors[i++];
+        gl.fillRect(x, y, width, height);
+      });
+    }
   } else {
-    const [color, x, y, width, height] = msg.data;
-    if (width < 3 || height < 3) return;
-    gl.fillStyle = color;
-    gl.fillRect(x, y, width, height);
+    console.warn(msg.data);
   }
 };

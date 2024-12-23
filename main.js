@@ -18,41 +18,52 @@ const BLACK = 1;
 const UNKNOWN = 2;
 
 const drawAt = (worker, x, y, color) => {
-  worker.postMessage([
-    color == WHITE ? "white" : color == BLACK ? "black" : "#cccccc",
-    x[0],
-    y[0],
-    x[1] - x[0],
-    y[1] - y[0],
+  worker.postMessage({
+    drawAt: [
+      color == WHITE ? "white" : color == BLACK ? "black" : "#cccccc",
+      x[0],
+      y[0],
+      x[1] - x[0],
+      y[1] - y[0],
+    ],
+  });
+};
+
+const drawScreen = (worker, ctxs, colors) => {
+  ctxs = ctxs.map((ctx) => [
+    ctx.x[0],
+    ctx.y[0],
+    ctx.x[1] - ctx.x[0],
+    ctx.y[1] - ctx.y[0],
   ]);
+  colors = colors.map((color) =>
+    color == WHITE ? "white" : color == BLACK ? "black" : "#cccccc",
+  );
+  worker.postMessage({ drawScreen: [colors, ctxs] });
 };
 
-const drawTopLeft = (worker, ctx, color) => {
-  const newX = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
-  const newY = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
-  drawAt(worker, newX, newY, color);
-  return { x: newX, y: newY };
+const ctxTopLeft = (ctx) => {
+  const x = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
+  const y = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
+  return { x, y };
 };
 
-const drawTopRight = (worker, ctx, color) => {
-  const newX = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
-  const newY = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
-  drawAt(worker, newX, newY, color);
-  return { x: newX, y: newY };
+const ctxTopRight = (ctx) => {
+  const x = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
+  const y = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
+  return { x, y };
 };
 
-const drawBottomLeft = (worker, ctx, color) => {
-  const newX = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
-  const newY = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
-  drawAt(worker, newX, newY, color);
-  return { x: newX, y: newY };
+const ctxBottomLeft = (ctx) => {
+  const x = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
+  const y = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
+  return { x, y };
 };
 
-const drawBottomRight = (worker, ctx, color) => {
-  const newX = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
-  const newY = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
-  drawAt(worker, newX, newY, color);
-  return { x: newX, y: newY };
+const ctxBottomRight = (ctx) => {
+  const x = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
+  const y = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
+  return { x, y };
 };
 
 /* lambda calculus */
@@ -433,7 +444,7 @@ const subst = (i, t, s) => {
 
 // guaranteed normal form
 // only use if sure that t is not a (potentially diverging) screen
-// TODO: this assumes laziness LOL
+// TODO: this assumes laziness LOL (OR DOES IT)
 const gnf = (t) => {
   if (cancelReduction() || t === null) {
     error("in gnf");
@@ -569,13 +580,26 @@ const reduceLoop = (worker, root, _t) => {
 
     if (seemsScreeny(t)) {
       const tl = t.body.left.left.left.right;
-      stack.push({ ctx: drawTopLeft(worker, ctx, toColor(tl)), t: tl });
+      const tlCtx = ctxTopLeft(ctx);
+      stack.push({ ctx: tlCtx, t: tl });
+
       const tr = t.body.left.left.right;
-      stack.push({ ctx: drawTopRight(worker, ctx, toColor(tr)), t: tr });
+      const trCtx = ctxTopRight(ctx);
+      stack.push({ ctx: trCtx, t: tr });
+
       const bl = t.body.left.right;
-      stack.push({ ctx: drawBottomLeft(worker, ctx, toColor(bl)), t: bl });
+      const blCtx = ctxBottomLeft(ctx);
+      stack.push({ ctx: blCtx, t: bl });
+
       const br = t.body.right;
-      stack.push({ ctx: drawBottomRight(worker, ctx, toColor(br)), t: br });
+      const brCtx = ctxBottomRight(ctx);
+      stack.push({ ctx: brCtx, t: br });
+
+      drawScreen(
+        worker,
+        [tlCtx, trCtx, blCtx, brCtx],
+        [toColor(tl), toColor(tr), toColor(bl), toColor(br)],
+      );
     } else {
       // TODO: could we risk gnfing here?
       drawAt(worker, ctx.x, ctx.y, toColor(t));
