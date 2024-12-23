@@ -90,30 +90,27 @@ const hash = (s) => {
 
 const abs = (body) => {
   if (body === null) return null;
-  const t = { type: "abs", parents: [], body };
+  const t = { type: "abs", body };
   t.hash = hash("abs" + body.hash);
-  body.parents.push(t);
   return t;
 };
 
 const app = (left) => (right) => {
   if (left === null || right === null) return null;
-  const t = { type: "app", parents: [], left, right };
+  const t = { type: "app", left, right };
   t.hash = hash("app" + left.hash + right.hash);
-  left.parents.push(t);
-  right.parents.push(t);
   return t;
 };
 
 const idx = (idx) => {
   if (idx === null) return null;
-  const t = { type: "idx", parents: [], idx };
+  const t = { type: "idx", idx };
   t.hash = hash("idx" + idx);
   return t;
 };
 
 const def = (name) => {
-  const t = { type: "def", parents: [], name };
+  const t = { type: "def", name };
   t.hash = hash("def" + name);
   return t;
 };
@@ -540,25 +537,7 @@ const snf = (_t) => {
     }
   }
 
-  if (t === null) return null;
-
   snfCache[_t.hash] = t;
-  const parents = [...t.parents];
-  while (parents.length !== 0) {
-    const parent = parents.pop();
-    switch (parent.type) {
-      case "app":
-        if (parent.left.hash == t) {
-        }
-      case "abs":
-        break;
-      default:
-        error("unexpected parent " + parent.type);
-        return null;
-    }
-    snfCache[parent.hash];
-  }
-
   return t;
 };
 
@@ -566,7 +545,6 @@ const reduceLoop = (worker, root, _t) => {
   let cnt = 0;
   window.debugInfo.innerHTML += `Term size: ${size(_t)} bit (BLC)<br>`;
   const stack = [{ ctx: root, t: _t }];
-  const foo = [];
   for (cnt = 0; stack.length > 0 && !canceled; cnt++) {
     // let [{ ctx, t }] = stack.splice(
     //   Math.floor(Math.random() * stack.length),
@@ -628,7 +606,6 @@ const reduceLoop = (worker, root, _t) => {
     }
   }
 
-  console.log(foo);
   return cnt;
 };
 
