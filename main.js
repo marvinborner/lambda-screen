@@ -535,7 +535,7 @@ const snf = (_t) => {
     }
   }
 
-  snfCache[_t.hash] = t;
+  if (t !== null) snfCache[_t.hash] = t;
   return t;
 };
 
@@ -543,9 +543,8 @@ const reduceLoop = (worker, root, _t) => {
   let cnt = 0;
   window.debugInfo.innerHTML += `Term size: ${size(_t)} bit (BLC)<br>`;
   const stack = [{ ctx: root, t: _t }];
-  for (let i = 0; stack.length > 0 && !canceled; i++) {
-    cnt++;
-
+  const foo = [];
+  for (cnt = 0; stack.length > 0 && !canceled; cnt++) {
     // let [{ ctx, t }] = stack.splice(
     //   Math.floor(Math.random() * stack.length),
     //   1,
@@ -578,34 +577,47 @@ const reduceLoop = (worker, root, _t) => {
     // smaller resolutions apparently crash the browser tab lol
     if (ctx.x[1] - ctx.x[0] < MAXRES) continue;
 
-    if (seemsScreeny(t)) {
-      const tl = t.body.left.left.left.right;
-      const tlCtx = ctxTopLeft(ctx);
-      stack.push({ ctx: tlCtx, t: tl });
+    const commitScreen = (__t, __ctx) => {
+      const commitStack = [{ t: __t, ctx: __ctx }];
+      while (commitStack.length !== 0) {
+        const p = commitStack.shift();
+        const _t = p.t;
+        const _ctx = p.ctx;
+        if (seemsScreeny(_t)) {
+          const tl = _t.body.left.left.left.right;
+          const tlCtx = ctxTopLeft(_ctx);
+          if (tl.hash in snfCache)
+            commitStack.push({ ctx: tlCtx, t: snfCache[tl.hash] });
+          else stack.push({ ctx: tlCtx, t: tl });
 
-      const tr = t.body.left.left.right;
-      const trCtx = ctxTopRight(ctx);
-      stack.push({ ctx: trCtx, t: tr });
+          const tr = _t.body.left.left.right;
+          const trCtx = ctxTopRight(_ctx);
+          stack.push({ ctx: trCtx, t: tr });
 
-      const bl = t.body.left.right;
-      const blCtx = ctxBottomLeft(ctx);
-      stack.push({ ctx: blCtx, t: bl });
+          const bl = _t.body.left.right;
+          const blCtx = ctxBottomLeft(_ctx);
+          stack.push({ ctx: blCtx, t: bl });
 
-      const br = t.body.right;
-      const brCtx = ctxBottomRight(ctx);
-      stack.push({ ctx: brCtx, t: br });
+          const br = _t.body.right;
+          const brCtx = ctxBottomRight(_ctx);
+          stack.push({ ctx: brCtx, t: br });
 
-      drawScreen(
-        worker,
-        [tlCtx, trCtx, blCtx, brCtx],
-        [toColor(tl), toColor(tr), toColor(bl), toColor(br)],
-      );
-    } else {
-      // TODO: could we risk gnfing here?
-      drawAt(worker, ctx.x, ctx.y, toColor(t));
-    }
+          drawScreen(
+            worker,
+            [tlCtx, trCtx, blCtx, brCtx],
+            [toColor(tl), toColor(tr), toColor(bl), toColor(br)],
+          );
+        } else {
+          // TODO: could we risk gnfing here?
+          drawAt(worker, _ctx.x, _ctx.y, toColor(_t));
+        }
+      }
+    };
+
+    commitScreen(t, ctx);
   }
 
+  console.log(foo);
   return cnt;
 };
 
