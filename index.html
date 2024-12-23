@@ -263,6 +263,28 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
         ></textarea>
       </div>
       <button id="render">Render!</button>
+      <details>
+        <summary>Configuration</summary>
+        <fieldset>
+          <label for="resolutionConfig">Resolution: </label>
+          <input
+            type="range"
+            min="100"
+            max="10000"
+            step="10"
+            name="resolutionConfig"
+            id="resolutionConfig"
+            value="1000"
+          />
+          <em id="resolutionConfigLabel" style="font-style: normal">1000</em>
+        </fieldset>
+        <b>Warning:</b> Larger resolutions will often need exponentially more
+        memory/computation!)
+        <br />
+        <br />
+        <b>Debug information:</b>
+        <pre id="debugInfo"></pre>
+      </details>
       <footer>
         <ul>
           <li>
@@ -293,6 +315,8 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
       if (isPhone || isSafari) {
         useWebGL = false;
         MAXRES = 3;
+        window.debugInfo.innerHTML +=
+          "detected Apple/Safari, falling back to Canvas with MAXRES=3.<br>";
       }
 
       const canvas = window.canvas;
@@ -311,8 +335,9 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
 
         // button doesn't update text without timeout
         setTimeout(() => {
+          let cnt;
           try {
-            reduceLoop(
+            cnt = reduceLoop(
               worker,
               root,
               app(t)(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
@@ -322,6 +347,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
           } finally {
             window.render.textContent = "Render!";
             window.render.disabled = false;
+            window.debugInfo.innerHTML += `rendered ${cnt} squares<br>`;
             console.timeEnd("reduceLoop");
           }
         }, 0);
@@ -344,6 +370,20 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
         render(t);
         params.searchParams.set("term", encodeBase64(t));
         window.history.pushState({ path: params.href }, "", params.href);
+      });
+
+      window.resolutionConfig.addEventListener("input", () => {
+        const resolution = +window.resolutionConfig.value;
+        document.getElementById("resolutionConfigLabel").innerHTML = resolution;
+      });
+
+      window.resolutionConfig.addEventListener("change", () => {
+        const resolution = +window.resolutionConfig.value;
+        root.x[1] = resolution;
+        root.y[1] = resolution;
+        worker.postMessage({
+          resize: { width: resolution, height: resolution },
+        });
       });
     </script>
   </body>

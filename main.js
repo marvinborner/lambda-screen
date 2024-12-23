@@ -348,7 +348,7 @@ const seemsScreeny = (t) =>
   t.body.left.left.left.left.idx === 0;
 
 const clearScreen = (worker) => {
-  worker.postMessage("clear");
+  worker.postMessage({ clear: true });
 };
 
 /* beta reduction */
@@ -434,6 +434,7 @@ const subst = (i, t, s) => {
 
 // guaranteed normal form
 // only use if sure that t is not a (potentially diverging) screen
+// TODO: this assumes laziness LOL
 const gnf = (t) => {
   if (cancelReduction() || t === null) {
     error("in gnf");
@@ -529,9 +530,12 @@ const snf = (_t) => {
 };
 
 const reduceLoop = (worker, root, _t) => {
+  let cnt = 0;
   console.log("BLC size:", size(_t));
   const stack = [{ ctx: root, t: _t }];
   for (let i = 0; stack.length > 0 && !canceled; i++) {
+    cnt++;
+
     // console.log(i, stack.length);
     // let [{ ctx, t }] = stack.splice(
     //   Math.floor(Math.random() * stack.length),
@@ -579,6 +583,8 @@ const reduceLoop = (worker, root, _t) => {
       drawAt(worker, ctx.x, ctx.y, toColor(t));
     }
   }
+
+  return cnt;
 };
 
 function helpSyntax() {

@@ -76,10 +76,25 @@ let useWebGL = true;
 
 let draw;
 self.onmessage = (msg) => {
-  if (msg.data == "clear") {
+  if ("clear" in msg.data) {
     if (useWebGL) {
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
+    } else {
+      gl.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  } else if ("resize" in msg.data) {
+    const { width, height } = msg.data.resize;
+    canvas.width = width;
+    canvas.height = height;
+    gl.canvas.width = width;
+    gl.canvas.height = height;
+
+    if (useWebGL) {
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      draw = initGL();
     } else {
       gl.clearRect(0, 0, canvas.width, canvas.height);
     }
