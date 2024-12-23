@@ -55,6 +55,20 @@ span#error {
     color: red;
 }
 
+fieldset {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+pre {
+	white-space: pre-wrap;
+}
+
+details summary {
+	cursor: pointer;
+}
+
 footer {
     text-align: center;
 }

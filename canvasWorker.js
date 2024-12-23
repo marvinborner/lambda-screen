@@ -105,10 +105,14 @@ self.onmessage = (msg) => {
       console.log("using WebGL");
       // i hate this
       try {
-        gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
+        gl = canvas.getContext("webgl", {
+          preserveDrawingBuffer: true,
+          antialias: false,
+        });
         if (!gl)
           gl = canvas.getContext("experimental-webgl", {
             preserveDrawingBuffer: true,
+            antialias: false,
           });
       } catch (e) {
       } finally {
@@ -137,7 +141,7 @@ self.onmessage = (msg) => {
     draw([x, y + height, x + width, y + height, x + width, y, x, y], colorArr);
   } else {
     const [color, x, y, width, height] = msg.data;
-    if (width < 4 || height < 4) return;
+    if (width < 3 || height < 3) return;
     gl.fillStyle = color;
     gl.fillRect(x, y, width, height);
   }

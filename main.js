@@ -19,7 +19,7 @@ const UNKNOWN = 2;
 
 const drawAt = (worker, x, y, color) => {
   worker.postMessage([
-    color == WHITE ? "white" : color == BLACK ? "black" : "grey",
+    color == WHITE ? "white" : color == BLACK ? "black" : "#cccccc",
     x[0],
     y[0],
     x[1] - x[0],
@@ -167,8 +167,8 @@ const show = (t) => {
   if (t === null) return "";
   switch (t.type) {
     case "abs":
-      // return `\\${show(t.body)}`;
-      return `[${show(t.body)}]`;
+      return `\\${show(t.body)}`;
+    // return `[${show(t.body)}]`;
     case "app":
       return `(${show(t.left)} ${show(t.right)})`;
     case "idx":
@@ -378,7 +378,8 @@ const inc = (i, t) => {
     return null;
   }
 
-  if (t.hash in incCache && i in incCache[t.hash]) return incCache[t.hash][i];
+  const h = hash("" + i + t.hash);
+  if (h in incCache) return incCache[h];
 
   let newT;
   switch (t.type) {
@@ -396,8 +397,7 @@ const inc = (i, t) => {
       return null;
   }
 
-  if (!(t.hash in incCache)) incCache[t.hash] = {};
-  incCache[t.hash][i] = newT;
+  incCache[h] = newT;
   return newT;
 };
 
@@ -408,8 +408,8 @@ const subst = (i, t, s) => {
     return null;
   }
 
-  const h = hash("" + t.hash + s.hash);
-  if (h in substCache && i in substCache[h]) return substCache[h][i];
+  const h = hash("" + i + t.hash + s.hash);
+  if (h in substCache) return substCache[h];
 
   let newT;
   switch (t.type) {
@@ -427,8 +427,7 @@ const subst = (i, t, s) => {
       return null;
   }
 
-  if (!(h in substCache)) substCache[h] = {};
-  substCache[h][i] = newT;
+  substCache[h] = newT;
   return newT;
 };
 
@@ -531,12 +530,11 @@ const snf = (_t) => {
 
 const reduceLoop = (worker, root, _t) => {
   let cnt = 0;
-  console.log("BLC size:", size(_t));
+  window.debugInfo.innerHTML += `Term size: ${size(_t)} bit (BLC)<br>`;
   const stack = [{ ctx: root, t: _t }];
   for (let i = 0; stack.length > 0 && !canceled; i++) {
     cnt++;
 
-    // console.log(i, stack.length);
     // let [{ ctx, t }] = stack.splice(
     //   Math.floor(Math.random() * stack.length),
     //   1,
