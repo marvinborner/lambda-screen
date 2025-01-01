@@ -57,6 +57,11 @@ span#error {
 
 fieldset {
 	display: flex;
+	flex-flow: column;
+}
+
+fieldset div {
+	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
 }

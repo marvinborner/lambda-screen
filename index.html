@@ -266,17 +266,36 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
       <details>
         <summary>Configuration</summary>
         <fieldset>
-          <label for="resolutionConfig">Resolution: </label>
-          <input
-            type="range"
-            min="100"
-            max="10000"
-            step="10"
-            name="resolutionConfig"
-            id="resolutionConfig"
-            value="1000"
-          />
-          <em id="resolutionConfigLabel" style="font-style: normal">1000</em>
+          <div>
+            <label for="resolutionConfig">Resolution: </label>
+            <input
+              type="range"
+              min="100"
+              max="10000"
+              step="10"
+              name="resolutionConfig"
+              id="resolutionConfig"
+              value="1000"
+            />
+            <em id="resolutionConfigLabel" style="font-style: normal">1000</em>
+          </div>
+          <div>
+            <label for="schedulerConfig">Scheduler: </label>
+            <select type="range" name="schedulerConfig" id="schedulerConfig">
+              <option value="fifo">FIFO/BFS/queue</option>
+              <option value="lifo">LIFO/DFS/stack</option>
+              <option value="random">random</option>
+            </select>
+          </div>
+          <div>
+            <label for="cachingConfig">Caching: </label>
+            <input
+              type="checkbox"
+              name="cachingConfig"
+              id="cachingConfig"
+              checked="checked"
+            />
+          </div>
         </fieldset>
         <b>Warning:</b> Larger resolutions will often need exponentially more
         memory/computation!
@@ -338,13 +357,25 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
         window.render.disabled = true;
         window.render.textContent = "Rendering...";
 
+        // TODO: priority queue on context size
+        let scheduler =
+          window.schedulerConfig.value == "lifo"
+            ? (stack) => stack.pop()
+            : window.schedulerConfig.value == "fifo"
+              ? (stack) => stack.shift()
+              : (stack) =>
+                  stack.splice(Math.floor(Math.random() * stack.length), 1)[0];
+        const caching = window.cachingConfig.checked;
+        const logger = (str) => {
+          window.debugInfo.innerHTML += str;
+        };
+
         // button doesn't update text without timeout
         setTimeout(() => {
           let cnt;
           try {
             cnt = reduceLoop(
-              worker,
-              root,
+              { worker, root, logger, scheduler, caching },
               app(t)(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
             );
           } catch (e) {

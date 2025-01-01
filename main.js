@@ -1,4 +1,5 @@
 let MAXRES = 2;
+let doCache = true;
 
 let errors = [];
 const error = (s) => {
@@ -390,7 +391,7 @@ const inc = (i, t) => {
   }
 
   const h = hash("" + i + t.hash);
-  if (h in incCache) return incCache[h];
+  if (doCache && h in incCache) return incCache[h];
 
   let newT;
   switch (t.type) {
@@ -420,7 +421,7 @@ const subst = (i, t, s) => {
   }
 
   const h = hash("" + i + t.hash + s.hash);
-  if (h in substCache) return substCache[h];
+  if (doCache && h in substCache) return substCache[h];
 
   let newT;
   switch (t.type) {
@@ -475,7 +476,7 @@ const whnf = (t) => {
     return null;
   }
 
-  if (t.hash in whnfCache) return whnfCache[t.hash];
+  if (doCache && t.hash in whnfCache) return whnfCache[t.hash];
 
   let newT;
   switch (t.type) {
@@ -505,7 +506,7 @@ const whnf = (t) => {
 //       Does this only work accidentally because of WHNF, deliberate symmetry and closed terms or sth?
 const snfCache = {};
 const snf = (_t) => {
-  if (_t !== null && _t.hash in snfCache) return snfCache[_t.hash];
+  if (doCache && _t !== null && _t.hash in snfCache) return snfCache[_t.hash];
 
   let t = whnf(_t);
   if (t === null || t.type !== "abs") {
@@ -541,19 +542,15 @@ const snf = (_t) => {
   return t;
 };
 
-const reduceLoop = (worker, root, _t) => {
+const reduceLoop = (conf, _t) => {
+  const { worker, root, logger, scheduler, caching } = conf;
   let cnt = 0;
-  window.debugInfo.innerHTML += `Term size: ${size(_t)} bit (BLC)<br>`;
+  logger(`Term size: ${size(_t)} bit (BLC)<br>`);
   const stack = [{ ctx: root, t: _t }];
+  doCache = caching;
   for (cnt = 0; stack.length > 0 && !canceled; cnt++) {
-    // let [{ ctx, t }] = stack.splice(
-    //   Math.floor(Math.random() * stack.length),
-    //   1,
-    // );
-    let { ctx, t } = stack.shift();
-    // let { ctx, t } = stack.pop();
+    let { ctx, t } = scheduler(stack);
 
-    // TODO: priority queue on context size
     if (toColor(t) !== UNKNOWN) continue;
 
     // could loop in gnf, therefore limit depth
