@@ -116,6 +116,31 @@ const def = (name) => {
   return t;
 };
 
+const num = (n) => {
+  const t = { type: "num", n };
+  t.hash = hash("num" + n);
+  return t;
+};
+
+const ope = (name, op) => {
+  const t = { type: "ope", name, op };
+  t.hash = hash("ope" + name);
+  return t;
+};
+
+const operators = {
+  add: (a) => (b) => num(a + b),
+  sub: (a) => (b) => num(a - b),
+  mul: (a) => (b) => num(a * b),
+  div: (a) => (b) => num(a / b),
+  pow: (a) => (b) => num(Math.pow(a / b)),
+  sqrt: (a) => num(Math.floor(Math.sqrt(a))),
+  inc: (a) => num(a + 1),
+  dec: (a) => num(a - 1),
+  eq: (a) => (b) => abs(abs(idx(a == b ? 1 : 0))),
+  gt: (a) => (b) => abs(abs(idx(a > b ? 1 : 0))),
+};
+
 const decodeBase64 = (enc) => {
   const dec = atob(enc);
   let bits = "";
@@ -143,8 +168,12 @@ const encodeBase64 = (t) => {
         s.push(0);
         return s;
       case "def":
-        error("unexpected def");
+        error("unexpected def " + show(t));
         return [];
+      case "num":
+        return ""; // TODO?
+      case "ope":
+        return ""; // TODO?
     }
   };
 
@@ -170,8 +199,12 @@ const size = (t) => {
     case "idx":
       return t.idx + 2;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return 0;
+    case "num":
+      return 0; // TODO?
+    case "ope":
+      return 0; // TODO?
   }
 };
 
@@ -187,6 +220,10 @@ const show = (t) => {
       return `${t.idx}`;
     case "def":
       return t.name;
+    case "num":
+      return `<${t.n}>`;
+    case "ope":
+      return t.name;
   }
 };
 
@@ -201,6 +238,10 @@ const isOpen = (t) => {
       case "idx":
         return t.idx >= d;
       case "def":
+        return false;
+      case "num":
+        return false;
+      case "ope":
         return false;
     }
   };
@@ -244,8 +285,18 @@ const parseLam = (str) => {
     case "]":
       error("in parseLam");
       return [];
+    case " ":
+      return folded(tail);
+    case "<": // integer
+      let n = "";
+      str = tail;
+      while (str && str[0] >= "0" && str[0] <= "9") {
+        n += str[0];
+        str = str.slice(1);
+      }
+      str = str.trim().slice(1); // final >
+      return [num(parseInt(n)), str.trim()];
     default:
-      if (head == " ") return folded(tail);
       if (head >= "a" && head <= "z") {
         // substitution
         let name = "";
@@ -253,15 +304,18 @@ const parseLam = (str) => {
           name += str[0];
           str = str.slice(1);
         }
-        return [def(name), str.trim()];
+        return [
+          name in operators ? ope(name, operators[name]) : def(name),
+          str.trim(),
+        ];
       } else {
         // de Bruijn index
-        let num = "";
+        let n = "";
         while (str && str[0] >= "0" && str[0] <= "9") {
-          num += str[0];
+          n += str[0];
           str = str.slice(1);
         }
-        return [idx(parseInt(num)), str.trim()];
+        return [idx(parseInt(n)), str.trim()];
       }
   }
 };
@@ -286,12 +340,14 @@ const parseBLC = (str) => {
 
 const parseTerm = (str) => {
   const t = /^[01]+$/.test(str) ? parseBLC(str)[0] : parseLam(str)[0];
-  if (isOpen(t)) {
-    error("is open");
-    return null;
-  } else {
-    return t;
-  }
+  return t;
+  // if (isOpen(t)) {
+  //   error("is open");
+  //   console.log(show(t));
+  //   return null;
+  // } else {
+  //   return t;
+  // }
 };
 
 const substDef = (i, t, n) => {
@@ -304,6 +360,10 @@ const substDef = (i, t, n) => {
       return abs(substDef(i + 1, t.body, n));
     case "def":
       return t.name === n ? idx(i) : t;
+    case "num":
+      return t; // TODO: in THEORY we could handle nums as Church here!
+    case "ope":
+      return t;
   }
 };
 
@@ -404,8 +464,14 @@ const inc = (i, t) => {
     case "abs":
       newT = abs(inc(i + 1, t.body));
       break;
+    case "num":
+      newT = t;
+      break;
+    case "ope":
+      newT = t;
+      break;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
   }
 
@@ -435,8 +501,14 @@ const subst = (i, t, s) => {
       newT = abs(subst(i + 1, t.body, inc(0, s)));
       break;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
+    case "num":
+      newT = t;
+      break;
+    case "ope":
+      newT = t;
+      break;
   }
 
   substCache[h] = newT;
@@ -461,11 +533,21 @@ const gnf = (t) => {
     case "abs":
       return abs(gnf(t.body));
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
     default:
       return t;
   }
+};
+
+// kinda trampoline-y
+const evalOp = (obj, arg) => {
+  if (obj.op instanceof Function && arg.type == "num") {
+    obj.op = obj.op(arg.n);
+    // trans down if now a number
+    return !(obj.op instanceof Function) ? obj.op : obj;
+  }
+  return app(obj, arg);
 };
 
 // weak head normal form
@@ -486,10 +568,12 @@ const whnf = (t) => {
       newT =
         _left.type === "abs"
           ? whnf(subst(0, _left.body, t.right))
-          : app(_left)(t.right);
+          : _left.type === "ope"
+            ? whnf(evalOp(_left, whnf(t.right))) // TODO: technically not whnf?
+            : app(_left)(t.right);
       break;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
     default:
       newT = t;
@@ -506,6 +590,7 @@ const whnf = (t) => {
 //       Does this only work accidentally because of WHNF, deliberate symmetry and closed terms or sth?
 const snfCache = {};
 const snf = (_t) => {
+  console.log("SNF", show(_t));
   if (doCache && _t !== null && _t.hash in snfCache) return snfCache[_t.hash];
 
   let t = whnf(_t);
@@ -524,14 +609,20 @@ const snf = (_t) => {
         t =
           _left.type === "abs"
             ? subst(0, _left.body, t.right)
-            : app(_left)(whnf(t.right));
+            : _left.type === "ope"
+              ? whnf(evalOp(_left, whnf(t.right)))
+              : app(_left)(whnf(t.right));
         break;
       case "abs":
         t = abs(whnf(t.body));
         break;
       case "def":
-        error("unexpected def");
+        error("unexpected def " + show(t));
         return null;
+      case "num":
+        break;
+      case "ope":
+        break;
       default:
         error("type");
         return null;

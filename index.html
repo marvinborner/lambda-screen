@@ -365,7 +365,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
               ? (stack) => stack.shift()
               : (stack) =>
                   stack.splice(Math.floor(Math.random() * stack.length), 1)[0];
-        const caching = window.cachingConfig.checked;
+        const caching = false; // window.cachingConfig.checked;
         const logger = (str) => {
           window.debugInfo.innerHTML += str;
         };
@@ -402,6 +402,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
 
       window.render.addEventListener("click", () => {
         const t = parse(window.term.value);
+        console.log(show(t));
         render(t);
         params.searchParams.set("term", encodeBase64(t));
         window.history.pushState({ path: params.href }, "", params.href);
