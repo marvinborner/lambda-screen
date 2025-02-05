@@ -13,6 +13,11 @@ split y [[[[fixOr [0 (4 ++3 --(2 ⋅ (+2)) (1 ⋅ (+2))) (4 ++3 (2 ⋅ (+2)) (1 
 
 main [split (+0) (+1) (+1)]
 
+# WORKING half-circle
+y = \(\(0 0) \(1 (0 0)))
+split = (y \\\\(gt (dec (pow <2> 2)) (sqrt (add (pow 1 <2>) (pow 0 <2>))) \\1 \(0 (4 (inc 3) (dec (mul 2 <2>)) (mul 1 <2>)) (4 (inc 3) (mul 2 <2>) (mul 1 <2>)) (4 (inc 3) (dec (mul 2 <2>)) (dec (mul 1 <2>))) (4 (inc 3) (mul 2 <2>) (dec (mul 1 <2>))))))
+\(split <0> <1> <1>)
+
 # y = \(\(0 0) \(1 (0 0)))
-# split = (y \\\\(gt (sqrt (add (pow 1 <2>) (pow 0 <2>))) <50> \\0 \(0 (4 (inc 3) (dec (mul 2 <2>)) (mul 1 <2>)) (4 (inc 3) (mul 2 <2>) (mul 1 <2>)) (4 (inc 3) (dec (mul 2 <2>)) (dec (mul 1 <2>))) (4 (inc 3) (mul 2 <2>) (dec (mul 1 <2>))))))
-# \(split <0> <1> <1>)
+# split = (y \\\(eq (mod (log (add 1 0)) <2>) <1> \\1 \(0 (3 (dec 2) (dec 1)) (3 (dec 2) (inc 1)) (3 (inc 2) (dec 1)) (3 (inc 2) (inc 1)))))
+# \(split <1> <1>)

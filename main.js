@@ -367,7 +367,7 @@ const substDef = (i, t, n) => {
     case "def":
       return t.name === n ? idx(i) : t;
     case "num":
-      return t; // TODO: in THEORY we could handle nums as Church here!
+      return t;
     case "ope":
       return t;
   }
@@ -510,10 +510,11 @@ const subst = (i, t, s) => {
       error("unexpected def " + show(t));
       return null;
     case "num":
-      newT = t;
+      newT = t; // TODO: in THEORY we could handle nums as Church here!
       break;
     case "ope":
-      newT = t;
+      newT = structuredClone(t); // TODO: clone should be unnecessary
+      newT.args = newT.args.map((arg) => subst(i, arg, s));
       break;
   }
 
@@ -546,49 +547,54 @@ const gnf = (t) => {
   }
 };
 
-const evalOp = (obj, arg) => {
+const evalOp = (obj) => {
+  if (obj.arity !== 0 || obj.args.every((arg) => arg.type != "num")) return obj;
+
+  switch (obj.name) {
+    case "add":
+      return num(obj.args[0].n + obj.args[1].n);
+    case "sub":
+      return num(obj.args[0].n - obj.args[1].n);
+    case "mul":
+      return num(obj.args[0].n * obj.args[1].n);
+    case "div":
+      return num(Math.floor(obj.args[0].n / obj.args[1].n));
+    case "pow":
+      return num(Math.pow(obj.args[0].n, obj.args[1].n));
+    case "mod":
+      return num(obj.args[0].n % obj.args[1].n);
+    case "eq":
+      return abs(abs(idx(obj.args[0].n == obj.args[1].n ? 1 : 0)));
+    case "gt":
+      return abs(abs(idx(obj.args[0].n > obj.args[1].n ? 1 : 0)));
+    case "ge":
+      return abs(abs(idx(obj.args[0].n >= obj.args[1].n ? 1 : 0)));
+    case "sqrt":
+      return num(Math.floor(Math.sqrt(obj.args[0].n)));
+    case "inc":
+      return num(obj.args[0].n + 1);
+    case "dec":
+      return num(obj.args[0].n - 1);
+    case "log":
+      console.log(obj.args[0]);
+      return obj.args[0];
+  }
+  return obj;
+};
+
+const applyOp = (obj, arg) => {
+  let consumed = false;
   if (obj.arity !== 0) {
-    console.log("pushing to", obj);
     obj.args.push(arg);
     obj.hash = hash("opapp" + obj.hash + arg.hash);
     obj.arity--;
-  } else return app(obj)(arg); // can't consume
-
-  console.log(obj.args.map((arg) => arg.type));
-  console.log(obj);
-
-  if (obj.arity === 0 && obj.args.every((arg) => arg.type == "num")) {
-    switch (obj.name) {
-      case "add":
-        return num(obj.args[0].n + obj.args[1].n);
-      case "sub":
-        return num(obj.args[0].n - obj.args[1].n);
-      case "mul":
-        return num(obj.args[0].n * obj.args[1].n);
-      case "div":
-        return num(Math.floor(obj.args[0].n / obj.args[1].n));
-      case "pow":
-        return num(Math.pow(obj.args[0].n, obj.args[1].n));
-      case "mod":
-        return num(obj.args[0].n % obj.args[1].n);
-      case "eq":
-        return abs(abs(idx(obj.args[0].n == obj.args[1].n ? 1 : 0)));
-      case "gt":
-        return abs(abs(idx(obj.args[0].n > obj.args[1].n ? 1 : 0)));
-      case "ge":
-        return abs(abs(idx(obj.args[0].n >= obj.args[1].n ? 1 : 0)));
-      case "sqrt":
-        return num(Math.floor(Math.sqrt(obj.args[0].n)));
-      case "inc":
-        return num(obj.args[0].n + 1);
-      case "dec":
-        return num(obj.args[0].n - 1);
-      case "log":
-        console.log(obj.args[0]);
-        return obj.args[0];
-    }
+    consumed = true;
   }
-  return obj;
+
+  obj.args = obj.args.map((arg) => evalOp(arg));
+  obj = evalOp(obj);
+
+  return consumed ? obj : app(obj)(arg);
 };
 
 // weak head normal form
@@ -611,8 +617,7 @@ const whnf = (t) => {
           subst(0, structuredClone(_left.body), structuredClone(t.right)),
         );
       else if (_left.type === "ope") {
-        newT = evalOp(_left, whnf(t.right));
-        // if (newT.hash !== t.hash) newT = whnf(newT);
+        newT = applyOp(structuredClone(_left), whnf(t.right));
       } else newT = app(_left)(t.right);
       break;
     case "def":
@@ -638,7 +643,7 @@ const snf = (_t) => {
   let t = whnf(_t);
   if (t === null || t.type !== "abs") {
     console.log(t);
-    error("not a screen/pixel " + show(_t));
+    error("not a screen/pixel " + show(t));
     return null;
   }
 
@@ -649,18 +654,11 @@ const snf = (_t) => {
     switch (t.type) {
       case "app":
         const _left = whnf(t.left);
-        // t =
-        //   _left.type === "abs"
-        //     ? subst(0, _left.body, t.right)
-        //     : _left.type === "ope"
-        //       ? whnf(evalOp(_left, whnf(t.right)))
-        //       : app(_left)(whnf(t.right));
         if (_left.type === "abs")
           t = subst(0, structuredClone(_left.body), structuredClone(t.right));
         else if (_left.type === "ope") {
           _left.args.map((arg) => whnf(arg));
-          t = evalOp(_left, whnf(t.right));
-          // if (newT.hash !== t.hash) newT = whnf(newT);
+          t = applyOp(structuredClone(_left), whnf(t.right));
         } else t = app(_left)(whnf(t.right));
         break;
       case "abs":
