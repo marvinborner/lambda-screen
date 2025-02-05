@@ -1,5 +1,5 @@
 let MAXRES = 2;
-let doCache = false;
+let doCache = true;
 
 let errors = [];
 const error = (s) => {
@@ -513,7 +513,7 @@ const subst = (i, t, s) => {
       newT = t; // TODO: in THEORY we could handle nums as Church here!
       break;
     case "ope":
-      newT = structuredClone(t); // TODO: clone should be unnecessary
+      newT = t;
       newT.args = newT.args.map((arg) => subst(i, arg, s));
       break;
   }
@@ -535,7 +535,7 @@ const gnf = (t) => {
       const _left = gnf(t.left);
       if (_left === null) return null;
       return _left.type === "abs"
-        ? gnf(subst(0, structuredClone(_left.body), structuredClone(t.right)))
+        ? gnf(subst(0, _left.body, t.right))
         : app(_left)(gnf(t.right));
     case "abs":
       return abs(gnf(t.body));
@@ -612,10 +612,7 @@ const whnf = (t) => {
     case "app":
       const _left = whnf(t.left);
       if (_left === null) return null;
-      if (_left.type === "abs")
-        newT = whnf(
-          subst(0, structuredClone(_left.body), structuredClone(t.right)),
-        );
+      if (_left.type === "abs") newT = whnf(subst(0, _left.body, t.right));
       else if (_left.type === "ope") {
         newT = applyOp(structuredClone(_left), whnf(t.right));
       } else newT = app(_left)(t.right);
@@ -654,8 +651,7 @@ const snf = (_t) => {
     switch (t.type) {
       case "app":
         const _left = whnf(t.left);
-        if (_left.type === "abs")
-          t = subst(0, structuredClone(_left.body), structuredClone(t.right));
+        if (_left.type === "abs") t = subst(0, _left.body, t.right);
         else if (_left.type === "ope") {
           _left.args.map((arg) => whnf(arg));
           t = applyOp(structuredClone(_left), whnf(t.right));

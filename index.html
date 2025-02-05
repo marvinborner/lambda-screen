@@ -365,7 +365,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
               ? (stack) => stack.shift()
               : (stack) =>
                   stack.splice(Math.floor(Math.random() * stack.length), 1)[0];
-        const caching = false; // window.cachingConfig.checked;
+        const caching = window.cachingConfig.checked;
         const logger = (str) => {
           window.debugInfo.innerHTML += str;
         };
