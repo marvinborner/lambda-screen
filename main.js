@@ -1,5 +1,5 @@
 let MAXRES = 2;
-let doCache = true;
+let doCache = false;
 
 let errors = [];
 const error = (s) => {
@@ -82,7 +82,7 @@ const hash = (s) => {
     h |= 0;
   }
   while (h in allHashes && allHashes[h] !== s) {
-    console.warn("hash collision");
+    console.warn("hash collision", allHashes[h], s);
     h += 1;
   }
   allHashes[h] = s;
@@ -123,23 +123,26 @@ const num = (n) => {
 };
 
 const ope = (name, op) => {
-  const t = { type: "ope", name, op };
+  const t = { type: "ope", name, ...op };
   t.hash = hash("ope" + name);
   return t;
 };
 
-const operators = {
-  add: (a) => (b) => num(a + b),
-  sub: (a) => (b) => num(a - b),
-  mul: (a) => (b) => num(a * b),
-  div: (a) => (b) => num(a / b),
-  pow: (a) => (b) => num(Math.pow(a / b)),
-  sqrt: (a) => num(Math.floor(Math.sqrt(a))),
-  inc: (a) => num(a + 1),
-  dec: (a) => num(a - 1),
-  eq: (a) => (b) => abs(abs(idx(a == b ? 1 : 0))),
-  gt: (a) => (b) => abs(abs(idx(a > b ? 1 : 0))),
-};
+const operators = [
+  { name: "add", arity: 2, args: [] },
+  { name: "sub", arity: 2, args: [] },
+  { name: "mul", arity: 2, args: [] },
+  { name: "div", arity: 2, args: [] },
+  { name: "pow", arity: 2, args: [] },
+  { name: "mod", arity: 2, args: [] },
+  { name: "eq", arity: 2, args: [] },
+  { name: "gt", arity: 2, args: [] },
+  { name: "ge", arity: 2, args: [] },
+  { name: "sqrt", arity: 1, args: [] },
+  { name: "inc", arity: 1, args: [] },
+  { name: "dec", arity: 1, args: [] },
+  { name: "log", arity: 1, args: [] },
+];
 
 const decodeBase64 = (enc) => {
   const dec = atob(enc);
@@ -299,13 +302,18 @@ const parseLam = (str) => {
     default:
       if (head >= "a" && head <= "z") {
         // substitution
-        let name = "";
+        let subst = "";
         while (str && str[0] >= "a" && str[0] <= "z") {
-          name += str[0];
+          subst += str[0];
           str = str.slice(1);
         }
         return [
-          name in operators ? ope(name, operators[name]) : def(name),
+          operators.some(({ name }) => name == subst)
+            ? ope(
+                subst,
+                operators.find(({ name }) => name == subst),
+              )
+            : def(subst),
           str.trim(),
         ];
       } else {
@@ -340,14 +348,12 @@ const parseBLC = (str) => {
 
 const parseTerm = (str) => {
   const t = /^[01]+$/.test(str) ? parseBLC(str)[0] : parseLam(str)[0];
-  return t;
-  // if (isOpen(t)) {
-  //   error("is open");
-  //   console.log(show(t));
-  //   return null;
-  // } else {
-  //   return t;
-  // }
+  if (isOpen(t)) {
+    error("is open");
+    return null;
+  } else {
+    return t;
+  }
 };
 
 const substDef = (i, t, n) => {
@@ -528,7 +534,7 @@ const gnf = (t) => {
       const _left = gnf(t.left);
       if (_left === null) return null;
       return _left.type === "abs"
-        ? gnf(subst(0, _left.body, t.right))
+        ? gnf(subst(0, structuredClone(_left.body), structuredClone(t.right)))
         : app(_left)(gnf(t.right));
     case "abs":
       return abs(gnf(t.body));
@@ -540,14 +546,49 @@ const gnf = (t) => {
   }
 };
 
-// kinda trampoline-y
 const evalOp = (obj, arg) => {
-  if (obj.op instanceof Function && arg.type == "num") {
-    obj.op = obj.op(arg.n);
-    // trans down if now a number
-    return !(obj.op instanceof Function) ? obj.op : obj;
+  if (obj.arity !== 0) {
+    console.log("pushing to", obj);
+    obj.args.push(arg);
+    obj.hash = hash("opapp" + obj.hash + arg.hash);
+    obj.arity--;
+  } else return app(obj)(arg); // can't consume
+
+  console.log(obj.args.map((arg) => arg.type));
+  console.log(obj);
+
+  if (obj.arity === 0 && obj.args.every((arg) => arg.type == "num")) {
+    switch (obj.name) {
+      case "add":
+        return num(obj.args[0].n + obj.args[1].n);
+      case "sub":
+        return num(obj.args[0].n - obj.args[1].n);
+      case "mul":
+        return num(obj.args[0].n * obj.args[1].n);
+      case "div":
+        return num(Math.floor(obj.args[0].n / obj.args[1].n));
+      case "pow":
+        return num(Math.pow(obj.args[0].n, obj.args[1].n));
+      case "mod":
+        return num(obj.args[0].n % obj.args[1].n);
+      case "eq":
+        return abs(abs(idx(obj.args[0].n == obj.args[1].n ? 1 : 0)));
+      case "gt":
+        return abs(abs(idx(obj.args[0].n > obj.args[1].n ? 1 : 0)));
+      case "ge":
+        return abs(abs(idx(obj.args[0].n >= obj.args[1].n ? 1 : 0)));
+      case "sqrt":
+        return num(Math.floor(Math.sqrt(obj.args[0].n)));
+      case "inc":
+        return num(obj.args[0].n + 1);
+      case "dec":
+        return num(obj.args[0].n - 1);
+      case "log":
+        console.log(obj.args[0]);
+        return obj.args[0];
+    }
   }
-  return app(obj, arg);
+  return obj;
 };
 
 // weak head normal form
@@ -565,12 +606,14 @@ const whnf = (t) => {
     case "app":
       const _left = whnf(t.left);
       if (_left === null) return null;
-      newT =
-        _left.type === "abs"
-          ? whnf(subst(0, _left.body, t.right))
-          : _left.type === "ope"
-            ? whnf(evalOp(_left, whnf(t.right))) // TODO: technically not whnf?
-            : app(_left)(t.right);
+      if (_left.type === "abs")
+        newT = whnf(
+          subst(0, structuredClone(_left.body), structuredClone(t.right)),
+        );
+      else if (_left.type === "ope") {
+        newT = evalOp(_left, whnf(t.right));
+        // if (newT.hash !== t.hash) newT = whnf(newT);
+      } else newT = app(_left)(t.right);
       break;
     case "def":
       error("unexpected def " + show(t));
@@ -590,12 +633,12 @@ const whnf = (t) => {
 //       Does this only work accidentally because of WHNF, deliberate symmetry and closed terms or sth?
 const snfCache = {};
 const snf = (_t) => {
-  console.log("SNF", show(_t));
   if (doCache && _t !== null && _t.hash in snfCache) return snfCache[_t.hash];
 
   let t = whnf(_t);
   if (t === null || t.type !== "abs") {
-    error("not a screen/pixel");
+    console.log(t);
+    error("not a screen/pixel " + show(_t));
     return null;
   }
 
@@ -606,12 +649,19 @@ const snf = (_t) => {
     switch (t.type) {
       case "app":
         const _left = whnf(t.left);
-        t =
-          _left.type === "abs"
-            ? subst(0, _left.body, t.right)
-            : _left.type === "ope"
-              ? whnf(evalOp(_left, whnf(t.right)))
-              : app(_left)(whnf(t.right));
+        // t =
+        //   _left.type === "abs"
+        //     ? subst(0, _left.body, t.right)
+        //     : _left.type === "ope"
+        //       ? whnf(evalOp(_left, whnf(t.right)))
+        //       : app(_left)(whnf(t.right));
+        if (_left.type === "abs")
+          t = subst(0, structuredClone(_left.body), structuredClone(t.right));
+        else if (_left.type === "ope") {
+          _left.args.map((arg) => whnf(arg));
+          t = evalOp(_left, whnf(t.right));
+          // if (newT.hash !== t.hash) newT = whnf(newT);
+        } else t = app(_left)(whnf(t.right));
         break;
       case "abs":
         t = abs(whnf(t.body));

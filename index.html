@@ -389,11 +389,11 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
         }, 0);
       };
 
-      if (params.searchParams.has("term")) {
-        const t = parseBLC(decodeBase64(params.searchParams.get("term")))[0];
-        window.term.innerText = show(t);
-        render(t);
-      }
+      // if (params.searchParams.has("term")) {
+      //   const t = parseBLC(decodeBase64(params.searchParams.get("term")))[0];
+      //   window.term.innerText = show(t);
+      //   render(t);
+      // }
 
       window.examples.addEventListener("change", () => {
         clearScreen(worker);
