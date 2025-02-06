@@ -134,10 +134,15 @@ const operators = [
   { name: "mul", arity: 2, args: [] },
   { name: "div", arity: 2, args: [] },
   { name: "pow", arity: 2, args: [] },
+  { name: "max", arity: 2, args: [] },
+  { name: "min", arity: 2, args: [] },
   { name: "mod", arity: 2, args: [] },
   { name: "eq", arity: 2, args: [] },
   { name: "gt", arity: 2, args: [] },
   { name: "ge", arity: 2, args: [] },
+  { name: "lt", arity: 2, args: [] },
+  { name: "le", arity: 2, args: [] },
+  { name: "prime", arity: 1, args: [] },
   { name: "sqrt", arity: 1, args: [] },
   { name: "inc", arity: 1, args: [] },
   { name: "dec", arity: 1, args: [] },
@@ -349,7 +354,7 @@ const parseBLC = (str) => {
 const parseTerm = (str) => {
   const t = /^[01]+$/.test(str) ? parseBLC(str)[0] : parseLam(str)[0];
   if (isOpen(t)) {
-    error("is open");
+    error("is open " + show(t));
     return null;
   } else {
     return t;
@@ -547,8 +552,20 @@ const gnf = (t) => {
   }
 };
 
+const isPrime = (num) => {
+  for (let i = 2, s = Math.sqrt(num); i <= s; i++) {
+    if (num % i === 0) return false;
+  }
+  console.log(num, num > 1);
+  return num > 1;
+};
+
 const evalOp = (obj) => {
-  if (obj.arity !== 0 || obj.args.every((arg) => arg.type != "num")) return obj;
+  if (
+    obj.arity !== 0 ||
+    (obj.args.every((arg) => arg.type != "num") && obj.name != "log")
+  )
+    return obj;
 
   switch (obj.name) {
     case "add":
@@ -561,6 +578,10 @@ const evalOp = (obj) => {
       return num(Math.floor(obj.args[0].n / obj.args[1].n));
     case "pow":
       return num(Math.pow(obj.args[0].n, obj.args[1].n));
+    case "max":
+      return num(Math.max(obj.args[0].n, obj.args[1].n));
+    case "min":
+      return num(Math.min(obj.args[0].n, obj.args[1].n));
     case "mod":
       return num(obj.args[0].n % obj.args[1].n);
     case "eq":
@@ -569,6 +590,12 @@ const evalOp = (obj) => {
       return abs(abs(idx(obj.args[0].n > obj.args[1].n ? 1 : 0)));
     case "ge":
       return abs(abs(idx(obj.args[0].n >= obj.args[1].n ? 1 : 0)));
+    case "lt":
+      return abs(abs(idx(obj.args[0].n < obj.args[1].n ? 1 : 0)));
+    case "le":
+      return abs(abs(idx(obj.args[0].n <= obj.args[1].n ? 1 : 0)));
+    case "prime":
+      return abs(abs(idx(isPrime(obj.args[0].n) ? 1 : 0)));
     case "sqrt":
       return num(Math.floor(Math.sqrt(obj.args[0].n)));
     case "inc":
@@ -640,7 +667,7 @@ const snf = (_t) => {
   let t = whnf(_t);
   if (t === null || t.type !== "abs") {
     console.log(t);
-    error("not a screen/pixel " + show(t));
+    error("not a screen/pixel: " + show(_t) + " \n\nWHNF of\n\n" + show(t));
     return null;
   }
 
