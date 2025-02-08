@@ -24,7 +24,12 @@ square (Square { x = Pos x1 x2, y = Pos y1 y2, c = c }) =
 display :: Term -> IO ()
 display t = do
   clear [ColorBuffer]
-  mapM_ square (schedule DFS 0.0001 (render t))
+  mapM_
+    (\s -> do
+      square s
+      -- flush -- TODO: chunking and not on main thread!
+    )
+    (schedule DFS 0.001 (render t))
   flush
 
 initial :: Term
