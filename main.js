@@ -1,8 +1,8 @@
 let MAXRES = 2;
-let doCache = true;
 
 let errors = [];
 const error = (s) => {
+  clearCache();
   errors.push(s);
   console.error(s);
   window.error.innerText = "invalid term: " + errors.toReversed().join(", ");
@@ -10,6 +10,25 @@ const error = (s) => {
 const clearErrors = () => {
   errors = [];
   window.error.innerText = "";
+};
+
+/* caching */
+
+let doCache = true;
+
+const allHashes = {};
+const incCache = {};
+const substCache = {};
+const whnfCache = {};
+const snfCache = {};
+const caches = [allHashes, incCache, substCache, whnfCache, snfCache];
+
+const clearCache = () => {
+  caches.forEach((cache) =>
+    Object.keys(cache).forEach((key) => {
+      delete cache[key];
+    }),
+  );
 };
 
 /* canvas */
@@ -40,6 +59,7 @@ const drawScreen = (worker, ctxs, colors) => {
   colors = colors.map((color) =>
     color == WHITE ? "white" : color == BLACK ? "black" : "#cccccc",
   );
+
   worker.postMessage({ drawScreen: [colors, ctxs] });
 };
 
@@ -49,7 +69,6 @@ const drawScreen = (worker, ctxs, colors) => {
 // `return null` and `if (foo === null) return null` are the monads of JavaScript!!
 // ---
 
-const allHashes = {};
 const hash = (s) => {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
@@ -332,9 +351,7 @@ const seemsScreeny = (t) => {
   t = t.body;
   let d = 0;
   while ((d++, t.type === "app")) t = t.left;
-  return d > 4 && Math.sqrt(d - 1) % 1 === 0 && t.type === "idx" && t.idx === 0
-    ? d - 1
-    : false;
+  return t.type === "idx" && t.idx === 0 ? d - 1 : false;
 };
 
 const getSubScreens = (t) => {
@@ -363,13 +380,13 @@ const cancelReduction = () => {
       )
     ) {
       canceled = true;
+      clearCache();
       return true;
     }
   }
   return canceled;
 };
 
-const incCache = {};
 const inc = (i, t) => {
   if (cancelReduction() || t === null) {
     error("in inc");
@@ -399,7 +416,6 @@ const inc = (i, t) => {
   return newT;
 };
 
-const substCache = {};
 const subst = (i, t, s) => {
   if (cancelReduction() || t === null) {
     error("in subst");
@@ -455,7 +471,6 @@ const gnf = (t) => {
 };
 
 // weak head normal form
-const whnfCache = {};
 const whnf = (t) => {
   if (cancelReduction() || t === null) {
     error("in whnf");
@@ -490,7 +505,6 @@ const whnf = (t) => {
 // one of [((((0 tl) tr) bl) br) ...], [[0]], [[1]]
 // TODO: Is this form of caching fundamentally wrong? (incongruences after subst or idx shifts!?)
 //       Does this only work accidentally because of WHNF, deliberate symmetry and closed terms or sth?
-const snfCache = {};
 const snf = (_t) => {
   if (doCache && _t !== null && _t.hash in snfCache) return snfCache[_t.hash];
 
@@ -503,7 +517,8 @@ const snf = (_t) => {
   t = abs(whnf(t.body));
   if (t.body.type === "abs") return gnf(t); // not a screen, probably a pixel
 
-  while (t !== null && !seemsScreeny(t)) {
+  // yes `=== false` is relevant here
+  while (t !== null && seemsScreeny(t) === false) {
     switch (t.type) {
       case "app":
         const _left = whnf(t.left);
@@ -562,7 +577,7 @@ const reduceLoop = (conf, _t) => {
     if (ctx.x[1] - ctx.x[0] < MAXRES) continue;
 
     let n;
-    if ((n = seemsScreeny(t))) {
+    if ((n = seemsScreeny(t)) && n > 3 && Math.sqrt(n) % 1 === 0) {
       const subScreens = getSubScreens(t);
       console.assert(n == subScreens.length);
 
