@@ -43,30 +43,6 @@ const drawScreen = (worker, ctxs, colors) => {
   worker.postMessage({ drawScreen: [colors, ctxs] });
 };
 
-const ctxTopLeft = (ctx) => {
-  const x = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
-  const y = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
-  return { x, y };
-};
-
-const ctxTopRight = (ctx) => {
-  const x = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
-  const y = [ctx.y[0], ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2];
-  return { x, y };
-};
-
-const ctxBottomLeft = (ctx) => {
-  const x = [ctx.x[0], ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2];
-  const y = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
-  return { x, y };
-};
-
-const ctxBottomRight = (ctx) => {
-  const x = [ctx.x[0] + (ctx.x[1] - ctx.x[0]) / 2, ctx.x[1]];
-  const y = [ctx.y[0] + (ctx.y[1] - ctx.y[0]) / 2, ctx.y[1]];
-  return { x, y };
-};
-
 /* lambda calculus */
 
 // ---
@@ -349,15 +325,25 @@ const toColor = (t) => {
   return UNKNOWN;
 };
 
-// [((((0 tl) tr) bl) br)]
-const seemsScreeny = (t) =>
-  t.type === "abs" &&
-  t.body.type === "app" &&
-  t.body.left.type === "app" &&
-  t.body.left.left.type === "app" &&
-  t.body.left.left.left.type === "app" &&
-  t.body.left.left.left.left.type === "idx" &&
-  t.body.left.left.left.left.idx === 0;
+// [((((0 tl) tr) bl) br) ...]
+// (or more, as long as n is perfect square)
+const seemsScreeny = (t) => {
+  if (t.type !== "abs") return false;
+  t = t.body;
+  let d = 0;
+  while ((d++, t.type === "app")) t = t.left;
+  return d > 4 && Math.sqrt(d - 1) % 1 === 0 && t.type === "idx" && t.idx === 0
+    ? d - 1
+    : false;
+};
+
+const getSubScreens = (t) => {
+  if (t.type !== "abs") return false;
+  t = t.body;
+  let ts = [];
+  while (t.type === "app" && ts.unshift(t)) t = t.left;
+  return ts;
+};
 
 const clearScreen = (worker) => {
   worker.postMessage({ clear: true });
@@ -501,7 +487,7 @@ const whnf = (t) => {
 };
 
 // screen normal form
-// one of [((((0 tl) tr) bl) br)], [[0]], [[1]]
+// one of [((((0 tl) tr) bl) br) ...], [[0]], [[1]]
 // TODO: Is this form of caching fundamentally wrong? (incongruences after subst or idx shifts!?)
 //       Does this only work accidentally because of WHNF, deliberate symmetry and closed terms or sth?
 const snfCache = {};
@@ -575,28 +561,35 @@ const reduceLoop = (conf, _t) => {
     // smaller resolutions apparently crash the browser tab lol
     if (ctx.x[1] - ctx.x[0] < MAXRES) continue;
 
-    if (seemsScreeny(t)) {
-      const tl = t.body.left.left.left.right;
-      const tlCtx = ctxTopLeft(ctx);
-      stack.push({ ctx: tlCtx, t: tl });
+    let n;
+    if ((n = seemsScreeny(t))) {
+      const subScreens = getSubScreens(t);
+      console.assert(n == subScreens.length);
 
-      const tr = t.body.left.left.right;
-      const trCtx = ctxTopRight(ctx);
-      stack.push({ ctx: trCtx, t: tr });
+      const splitSize = Math.sqrt(n);
+      const ctxWidth = (ctx.x[1] - ctx.x[0]) / splitSize;
+      const ctxHeight = (ctx.y[1] - ctx.y[0]) / splitSize;
 
-      const bl = t.body.left.right;
-      const blCtx = ctxBottomLeft(ctx);
-      stack.push({ ctx: blCtx, t: bl });
+      const ctxs = [];
+      const colors = [];
 
-      const br = t.body.right;
-      const brCtx = ctxBottomRight(ctx);
-      stack.push({ ctx: brCtx, t: br });
+      let x0 = ctx.x[0];
+      let y0 = ctx.y[0];
 
-      drawScreen(
-        worker,
-        [tlCtx, trCtx, blCtx, brCtx],
-        [toColor(tl), toColor(tr), toColor(bl), toColor(br)],
-      );
+      for (let i = 0; i < n; i++) {
+        const current = subScreens[i];
+        const subCtx = { x: [x0, x0 + ctxWidth], y: [y0, y0 + ctxHeight] };
+        ctxs.push(subCtx);
+        stack.push({ ctx: subCtx, t: current.right });
+        colors.push(toColor(current.right));
+
+        if ((i + 1) % splitSize == 0) {
+          x0 = ctx.x[0];
+          y0 += ctxHeight;
+        } else x0 += ctxWidth;
+      }
+
+      drawScreen(worker, ctxs, colors);
     } else {
       // TODO: could we risk gnfing here?
       drawAt(worker, ctx.x, ctx.y, toColor(t));
