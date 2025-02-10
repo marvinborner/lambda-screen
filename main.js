@@ -77,7 +77,7 @@ const hash = (s) => {
     h |= 0;
   }
   while (h in allHashes && allHashes[h] !== s) {
-    console.warn("hash collision");
+    console.warn("hash collision", allHashes[h], s);
     h += 1;
   }
   allHashes[h] = s;
@@ -111,6 +111,39 @@ const def = (name) => {
   return t;
 };
 
+const num = (n) => {
+  const t = { type: "num", n };
+  t.hash = hash("num" + n);
+  return t;
+};
+
+const ope = (name, op) => {
+  const t = { type: "ope", name, ...op };
+  t.hash = hash("ope" + name);
+  return t;
+};
+
+const operators = [
+  { name: "add", arity: 2, args: [] },
+  { name: "sub", arity: 2, args: [] },
+  { name: "mul", arity: 2, args: [] },
+  { name: "div", arity: 2, args: [] },
+  { name: "pow", arity: 2, args: [] },
+  { name: "max", arity: 2, args: [] },
+  { name: "min", arity: 2, args: [] },
+  { name: "mod", arity: 2, args: [] },
+  { name: "eq", arity: 2, args: [] },
+  { name: "gt", arity: 2, args: [] },
+  { name: "ge", arity: 2, args: [] },
+  { name: "lt", arity: 2, args: [] },
+  { name: "le", arity: 2, args: [] },
+  { name: "prime", arity: 1, args: [] },
+  { name: "sqrt", arity: 1, args: [] },
+  { name: "inc", arity: 1, args: [] },
+  { name: "dec", arity: 1, args: [] },
+  { name: "log", arity: 1, args: [] },
+];
+
 const decodeBase64 = (enc) => {
   const dec = atob(enc);
   let bits = "";
@@ -138,8 +171,12 @@ const encodeBase64 = (t) => {
         s.push(0);
         return s;
       case "def":
-        error("unexpected def");
+        error("unexpected def " + show(t));
         return [];
+      case "num":
+        return ""; // TODO?
+      case "ope":
+        return ""; // TODO?
     }
   };
 
@@ -165,8 +202,12 @@ const size = (t) => {
     case "idx":
       return t.idx + 2;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return 0;
+    case "num":
+      return 0; // TODO?
+    case "ope":
+      return 0; // TODO?
   }
 };
 
@@ -182,6 +223,10 @@ const show = (t) => {
       return `${t.idx}`;
     case "def":
       return t.name;
+    case "num":
+      return `<${t.n}>`;
+    case "ope":
+      return t.name;
   }
 };
 
@@ -196,6 +241,10 @@ const isOpen = (t) => {
       case "idx":
         return t.idx >= d;
       case "def":
+        return false;
+      case "num":
+        return false;
+      case "ope":
         return false;
     }
   };
@@ -239,24 +288,42 @@ const parseLam = (str) => {
     case "]":
       error("in parseLam");
       return [];
+    case " ":
+      return folded(tail);
+    case "<": // integer
+      let n = "";
+      str = tail;
+      while (str && str[0] >= "0" && str[0] <= "9") {
+        n += str[0];
+        str = str.slice(1);
+      }
+      str = str.trim().slice(1); // final >
+      return [num(parseInt(n)), str.trim()];
     default:
-      if (head == " ") return folded(tail);
       if (head >= "a" && head <= "z") {
         // substitution
-        let name = "";
+        let subst = "";
         while (str && str[0] >= "a" && str[0] <= "z") {
-          name += str[0];
+          subst += str[0];
           str = str.slice(1);
         }
-        return [def(name), str.trim()];
+        return [
+          operators.some(({ name }) => name == subst)
+            ? ope(
+                subst,
+                operators.find(({ name }) => name == subst),
+              )
+            : def(subst),
+          str.trim(),
+        ];
       } else {
         // de Bruijn index
-        let num = "";
+        let n = "";
         while (str && str[0] >= "0" && str[0] <= "9") {
-          num += str[0];
+          n += str[0];
           str = str.slice(1);
         }
-        return [idx(parseInt(num)), str.trim()];
+        return [idx(parseInt(n)), str.trim()];
       }
   }
 };
@@ -282,7 +349,7 @@ const parseBLC = (str) => {
 const parseTerm = (str) => {
   const t = /^[01]+$/.test(str) ? parseBLC(str)[0] : parseLam(str)[0];
   if (isOpen(t)) {
-    error("is open");
+    error("is open " + show(t));
     return null;
   } else {
     return t;
@@ -299,6 +366,10 @@ const substDef = (i, t, n) => {
       return abs(substDef(i + 1, t.body, n));
     case "def":
       return t.name === n ? idx(i) : t;
+    case "num":
+      return t;
+    case "ope":
+      return t;
   }
 };
 
@@ -407,8 +478,14 @@ const inc = (i, t) => {
     case "abs":
       newT = abs(inc(i + 1, t.body));
       break;
+    case "num":
+      newT = t;
+      break;
+    case "ope":
+      newT = t;
+      break;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
   }
 
@@ -437,8 +514,15 @@ const subst = (i, t, s) => {
       newT = abs(subst(i + 1, t.body, inc(0, s)));
       break;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
+    case "num":
+      newT = t; // TODO: in THEORY we could handle nums as Church here!
+      break;
+    case "ope":
+      newT = t;
+      newT.args = newT.args.map((arg) => subst(i, arg, s));
+      break;
   }
 
   substCache[h] = newT;
@@ -463,11 +547,83 @@ const gnf = (t) => {
     case "abs":
       return abs(gnf(t.body));
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
     default:
       return t;
   }
+};
+
+const isPrime = (num) => {
+  for (let i = 2, s = Math.sqrt(num); i <= s; i++) {
+    if (num % i === 0) return false;
+  }
+  console.log(num, num > 1);
+  return num > 1;
+};
+
+const evalOp = (obj) => {
+  if (
+    obj.arity !== 0 ||
+    (obj.args.every((arg) => arg.type != "num") && obj.name != "log")
+  )
+    return obj;
+
+  switch (obj.name) {
+    case "add":
+      return num(obj.args[0].n + obj.args[1].n);
+    case "sub":
+      return num(obj.args[0].n - obj.args[1].n);
+    case "mul":
+      return num(obj.args[0].n * obj.args[1].n);
+    case "div":
+      return num(Math.floor(obj.args[0].n / obj.args[1].n));
+    case "pow":
+      return num(Math.pow(obj.args[0].n, obj.args[1].n));
+    case "max":
+      return num(Math.max(obj.args[0].n, obj.args[1].n));
+    case "min":
+      return num(Math.min(obj.args[0].n, obj.args[1].n));
+    case "mod":
+      return num(obj.args[0].n % obj.args[1].n);
+    case "eq":
+      return abs(abs(idx(obj.args[0].n == obj.args[1].n ? 1 : 0)));
+    case "gt":
+      return abs(abs(idx(obj.args[0].n > obj.args[1].n ? 1 : 0)));
+    case "ge":
+      return abs(abs(idx(obj.args[0].n >= obj.args[1].n ? 1 : 0)));
+    case "lt":
+      return abs(abs(idx(obj.args[0].n < obj.args[1].n ? 1 : 0)));
+    case "le":
+      return abs(abs(idx(obj.args[0].n <= obj.args[1].n ? 1 : 0)));
+    case "prime":
+      return abs(abs(idx(isPrime(obj.args[0].n) ? 1 : 0)));
+    case "sqrt":
+      return num(Math.floor(Math.sqrt(obj.args[0].n)));
+    case "inc":
+      return num(obj.args[0].n + 1);
+    case "dec":
+      return num(obj.args[0].n - 1);
+    case "log":
+      console.log(obj.args[0]);
+      return obj.args[0];
+  }
+  return obj;
+};
+
+const applyOp = (obj, arg) => {
+  let consumed = false;
+  if (obj.arity !== 0) {
+    obj.args.push(arg);
+    obj.hash = hash("opapp" + obj.hash + arg.hash);
+    obj.arity--;
+    consumed = true;
+  }
+
+  obj.args = obj.args.map((arg) => evalOp(arg));
+  obj = evalOp(obj);
+
+  return consumed ? obj : app(obj)(arg);
 };
 
 // weak head normal form
@@ -484,13 +640,13 @@ const whnf = (t) => {
     case "app":
       const _left = whnf(t.left);
       if (_left === null) return null;
-      newT =
-        _left.type === "abs"
-          ? whnf(subst(0, _left.body, t.right))
-          : app(_left)(t.right);
+      if (_left.type === "abs") newT = whnf(subst(0, _left.body, t.right));
+      else if (_left.type === "ope") {
+        newT = applyOp(structuredClone(_left), whnf(t.right));
+      } else newT = app(_left)(t.right);
       break;
     case "def":
-      error("unexpected def");
+      error("unexpected def " + show(t));
       return null;
     default:
       newT = t;
@@ -510,7 +666,8 @@ const snf = (_t) => {
 
   let t = whnf(_t);
   if (t === null || t.type !== "abs") {
-    error("not a screen/pixel");
+    console.log(t);
+    error("not a screen/pixel: " + show(_t) + " \n\nWHNF of\n\n" + show(t));
     return null;
   }
 
@@ -522,17 +679,22 @@ const snf = (_t) => {
     switch (t.type) {
       case "app":
         const _left = whnf(t.left);
-        t =
-          _left.type === "abs"
-            ? subst(0, _left.body, t.right)
-            : app(_left)(whnf(t.right));
+        if (_left.type === "abs") t = subst(0, _left.body, t.right);
+        else if (_left.type === "ope") {
+          _left.args.map((arg) => whnf(arg));
+          t = applyOp(structuredClone(_left), whnf(t.right));
+        } else t = app(_left)(whnf(t.right));
         break;
       case "abs":
         t = abs(whnf(t.body));
         break;
       case "def":
-        error("unexpected def");
+        error("unexpected def " + show(t));
         return null;
+      case "num":
+        break;
+      case "ope":
+        break;
       default:
         error("type");
         return null;
