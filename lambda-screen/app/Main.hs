@@ -1,48 +1,43 @@
 module Main where
 
-import           Graphics.Rendering.OpenGL
-                                         hiding ( Color )
-import           Graphics.UI.GLUT        hiding ( Color )
-import           Scheduler
+import           Control.Concurrent.ParallelIO.Global
+import           GHC.Wasm.Prim
 import           Screen
 import           Term
 
-resolveColor :: Color -> Color3 GLfloat
-resolveColor Black = Color3 0.0 0.0 0.0 :: Color3 GLfloat
-resolveColor White = Color3 1.0 1.0 1.0 :: Color3 GLfloat
-resolveColor Grey  = Color3 0.6 0.6 0.6 :: Color3 GLfloat
+foreign export javascript "onRender" onRender :: Double -> JSString -> IO ()
 
-square :: Area -> IO ()
-square (Square { x = Pos x1 x2, y = Pos y1 y2, c = c }) =
-  renderPrimitive Quads $ do
-    color $ resolveColor c
-    vertex (Vertex3 x1 y1 0 :: Vertex3 GLfloat)
-    vertex (Vertex3 x1 y2 0 :: Vertex3 GLfloat)
-    vertex (Vertex3 x2 y2 0 :: Vertex3 GLfloat)
-    vertex (Vertex3 x2 y1 0 :: Vertex3 GLfloat)
+foreign import javascript unsafe "render($1, $2, $3, $4, $5)"
+  js_draw :: Double -> Double -> Double -> Double -> JSString -> IO ()
 
-display :: Term -> IO ()
-display t = do
-  clear [ColorBuffer]
-  mapM_
-    (\s -> do
-      square s
-      -- flush -- TODO: chunking and not on main thread!
-    )
-    (schedule DFS 0.001 (render t))
-  flush
+foreign import javascript safe "flush()"
+  flush :: IO ()
+
+main :: IO ()
+main = error "uwu"
+
+absolute :: Double -> Double
+absolute n = if n >= 0 then n else -n
+
+dfs :: Area -> Image -> IO ()
+dfs (Square { x = Pos x1 x2, y = Pos y1 y2 }) _ | absolute (x2 - x1) < 1 =
+  js_draw x1 x2 y1 y2 (toJSString $ show Grey)
+dfs root (Screen tl tr bl br) = do
+  dfs (topLeft root)     tl
+  dfs (topRight root)    tr
+  dfs (bottomLeft root)  bl
+  dfs (bottomRight root) br
+
+dfs (Square { x = Pos x1 x2, y = Pos y1 y2 }) (Pixel c) =
+  js_draw x1 x2 y1 y2 (toJSString $ show c)
 
 initial :: Term
 initial = Abs (App (App (App (App (Idx 0) b) b) b) b)
   where b = Abs (Abs (Idx 0))
 
-main :: IO ()
-main = do
-  inp <- getContents
-  let t       = parse inp
-  let program = App t initial
-  print program
-  (name, _) <- getArgsAndInitialize
-  createWindow name
-  displayCallback $= (display program)
-  mainLoop
+onRender :: Double -> JSString -> IO ()
+onRender size input = do
+  let term = parse $ fromJSString input
+  let root = Square { x = Pos 0 size, y = Pos 0 size, c = Grey }
+  dfs root $ render $ App term initial
+  flush

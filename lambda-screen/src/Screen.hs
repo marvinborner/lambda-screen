@@ -10,7 +10,8 @@ module Screen
   ) where
 
 data Color = Black | White | Grey
-data Pos = Pos Float Float
+  deriving Show
+data Pos = Pos Double Double
 data Area = Square
   { x :: Pos
   , y :: Pos

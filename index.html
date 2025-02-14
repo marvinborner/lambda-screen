@@ -307,23 +307,6 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
             />
             <em id="resolutionConfigLabel" style="font-style: normal">1000</em>
           </div>
-          <div>
-            <label for="schedulerConfig">Scheduler: </label>
-            <select type="range" name="schedulerConfig" id="schedulerConfig">
-              <option value="fifo">FIFO/BFS/queue</option>
-              <option value="lifo">LIFO/DFS/stack</option>
-              <option value="random">random</option>
-            </select>
-          </div>
-          <div>
-            <label for="cachingConfig">Caching: </label>
-            <input
-              type="checkbox"
-              name="cachingConfig"
-              id="cachingConfig"
-              checked="checked"
-            />
-          </div>
         </fieldset>
         <b>Warning:</b> Larger resolutions will often need exponentially more
         memory/computation!
@@ -353,85 +336,53 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
       </footer>
     </main>
     <script src="main.js"></script>
-    <script charset="utf-8">
-      const params = new URL(window.location.href);
+    <script type="module">
+      import { WASI } from "https://cdn.jsdelivr.net/npm/@runno/wasi@0.7.0/dist/wasi.js";
+      import wasm_jsffi from "./lambda-screen/build/wasm_jsffi.js";
 
-      let useWebGL = true;
-      if (params.searchParams.has("webgl"))
-        useWebGL = params.searchParams.get("webgl") == "true";
-
-      const isPhone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(
-        navigator.userAgent,
+      const wasi = new WASI({
+        stdout: (out) => console.log(out),
+      });
+      const jsffiExports = {};
+      const wasm = await WebAssembly.instantiateStreaming(
+        fetch("/lambda-screen/build/lambda_screen.wasm"),
+        Object.assign(
+          { ghc_wasm_jsffi: wasm_jsffi(jsffiExports) },
+          wasi.getImportObject(),
+        ),
       );
-      if ((isPhone || isSafari) && !params.searchParams.has("webgl")) {
-        useWebGL = false;
-        MAXRES = 3;
-        window.debugInfo.innerHTML +=
-          "detected phone/Safari, falling back to Canvas with MAXRES=3. Reload with ?webgl=true to still try webgl.<br>";
-      }
+      Object.assign(jsffiExports, wasm.instance.exports);
 
-      const canvas = window.canvas;
-      const root = { x: [0, canvas.width], y: [0, canvas.height] };
-
-      const offscreen = canvas.transferControlToOffscreen();
-      const worker = new Worker("canvasWorker.js");
-      worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
-
-      const render = (t) => {
-        clearScreen(worker);
-        clearErrors();
-        console.time("reduceLoop");
-        window.render.disabled = true;
-        window.render.textContent = "Rendering...";
-
-        // TODO: priority queue on context size
-        let scheduler =
-          window.schedulerConfig.value == "lifo"
-            ? (stack) => stack.pop()
-            : window.schedulerConfig.value == "fifo"
-              ? (stack) => stack.shift()
-              : (stack) =>
-                  stack.splice(Math.floor(Math.random() * stack.length), 1)[0];
-        const caching = window.cachingConfig.checked;
-        const logger = (str) => {
-          window.debugInfo.innerHTML += str;
-        };
-
-        // button doesn't update text without timeout
-        setTimeout(() => {
-          let cnt;
-          try {
-            cnt = reduceLoop(
-              { worker, root, logger, scheduler, caching },
-              app(t)(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
-            );
-          } catch (e) {
-            console.error(e);
-          } finally {
-            window.render.textContent = "Render!";
-            window.render.disabled = false;
-            window.debugInfo.innerHTML += `rendered ${cnt} squares<br>`;
-            console.timeEnd("reduceLoop");
-          }
-        }, 0);
-      };
+      wasi.initialize(wasm, {
+        ghc_wasm_jsffi: wasm_jsffi(jsffiExports),
+      });
 
       if (params.searchParams.has("term")) {
-        const t = parseBLC(decodeBase64(params.searchParams.get("term")))[0];
-        window.term.innerText = show(t);
-        render(t);
+        const t = decodeBase64(params.searchParams.get("term"));
+        window.term.innerText = t;
       }
+
+      // sometimes a previous value is cached!
+      (() => {
+        const resolution = +window.resolutionConfig.value;
+        console.log("restoring", resolution);
+        document.getElementById("resolutionConfigLabel").innerHTML = resolution;
+        worker.postMessage({
+          resize: { width: resolution, height: resolution },
+        });
+      })();
 
       window.examples.addEventListener("change", () => {
         clearScreen(worker);
         window.term.value = window.examples.value;
       });
 
-      window.render.addEventListener("click", () => {
-        const t = parse(window.term.value);
-        render(t);
-        params.searchParams.set("term", encodeBase64(t));
+      document.querySelector("button#render").addEventListener("click", () => {
+        wasi.instance.exports.onRender(
+          +window.resolutionConfig.value,
+          window.term.value,
+        );
+        // params.searchParams.set("term", encodeBase64(t));
         window.history.pushState({ path: params.href }, "", params.href);
       });
 
@@ -442,8 +393,6 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
 
       window.resolutionConfig.addEventListener("change", () => {
         const resolution = +window.resolutionConfig.value;
-        root.x[1] = resolution;
-        root.y[1] = resolution;
         worker.postMessage({
           resize: { width: resolution, height: resolution },
         });
