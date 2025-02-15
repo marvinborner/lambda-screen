@@ -8,7 +8,8 @@
   </head>
   <body>
     <main>
-      <canvas height="1000" width="1000" id="canvas"></canvas>
+      <!-- <canvas height="1000" width="1000" id="canvas"></canvas> -->
+      <div id="canvas"></div>
       <div>
         <div class="inputWrap">
           Load preset:
@@ -335,6 +336,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
         </ul>
       </footer>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.8.0/dist/pixi.min.js"></script>
     <script src="main.js"></script>
     <script type="module">
       import { WASI } from "https://cdn.jsdelivr.net/npm/@runno/wasi@0.7.0/dist/wasi.js";
@@ -357,6 +359,7 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
         ghc_wasm_jsffi: wasm_jsffi(jsffiExports),
       });
 
+      const params = new URL(window.location.href);
       if (params.searchParams.has("term")) {
         const t = decodeBase64(params.searchParams.get("term"));
         window.term.innerText = t;
@@ -367,9 +370,9 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
         const resolution = +window.resolutionConfig.value;
         console.log("restoring", resolution);
         document.getElementById("resolutionConfigLabel").innerHTML = resolution;
-        worker.postMessage({
-          resize: { width: resolution, height: resolution },
-        });
+        // worker.postMessage({
+        //   resize: { width: resolution, height: resolution },
+        // });
       })();
 
       window.examples.addEventListener("change", () => {
@@ -393,9 +396,9 @@ map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
 
       window.resolutionConfig.addEventListener("change", () => {
         const resolution = +window.resolutionConfig.value;
-        worker.postMessage({
-          resize: { width: resolution, height: resolution },
-        });
+        // worker.postMessage({
+        //   resize: { width: resolution, height: resolution },
+        // });
       });
     </script>
   </body>

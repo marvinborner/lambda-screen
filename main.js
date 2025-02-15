@@ -1,70 +1,21 @@
-const params = new URL(window.location.href);
+const resolution = () => +window.resolutionConfig.value;
 
-let useWebGL = true;
-if (params.searchParams.has("webgl"))
-  useWebGL = params.searchParams.get("webgl") == "true";
-
-const isPhone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-if ((isPhone || isSafari) && !params.searchParams.has("webgl")) {
-  useWebGL = false;
-  MAXRES = 3;
-  window.debugInfo.innerHTML +=
-    "detected phone/Safari, falling back to Canvas with MAXRES=3. Reload with ?webgl=true to still try webgl.<br>";
-}
-
-const canvas = window.canvas;
-const offscreen = canvas.transferControlToOffscreen();
-const worker = new Worker("canvasWorker.js");
-worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
-
-let MAXRES = 2;
-
-let errors = [];
-const error = (s) => {
-  clearCache();
-  errors.push(s);
-  console.error(s);
-  window.error.innerText = "invalid term: " + errors.toReversed().join(", ");
-};
-const clearErrors = () => {
-  errors = [];
-  window.error.innerText = "";
-};
-
-/* canvas */
-
-const drawAt = (x, y, color) => {
-  worker.postMessage({
-    drawAt: [
-      color == "White" ? "white" : color == "Black" ? "black" : "#cccccc",
-      x[0],
-      y[0],
-      x[1] - x[0],
-      y[1] - y[0],
-    ],
+const app = new PIXI.Application();
+app
+  .init({
+    width: resolution(),
+    height: resolution(),
+    preferene: "webgl",
+  })
+  .then(() => {
+    document.querySelector("main div#canvas").appendChild(app.canvas);
   });
-};
-
-const drawScreen = (ctxs, colors) => {
-  ctxs = ctxs.map((ctx) => [
-    ctx.x[0],
-    ctx.y[0],
-    ctx.x[1] - ctx.x[0],
-    ctx.y[1] - ctx.y[0],
-  ]);
-  colors = colors.map((color) =>
-    color == "White" ? "white" : color == "Black" ? "black" : "#cccccc",
-  );
-
-  worker.postMessage({ drawScreen: [colors, ctxs] });
-};
 
 const clearScreen = () => {
-  worker.postMessage({ clear: true });
+  // worker.postMessage({ type: "clear" });
 };
 
-const decodeBase64 = (enc) => {
+function decodeBase64(enc) {
   const dec = atob(enc);
   let bits = "";
   for (let i = 0; i < dec.length; i++) {
@@ -75,7 +26,7 @@ const decodeBase64 = (enc) => {
     }
   }
   return bits;
-};
+}
 
 const encodeBase64 = (t) => {
   const bin = (_t) => {
@@ -108,25 +59,101 @@ const encodeBase64 = (t) => {
   return btoa(res);
 };
 
-let chunk = 10;
-let ctxs = [];
-let colors = [];
-const render = (x1, x2, y1, y2, color) => {
-  if (chunk == 0) {
-    drawScreen(ctxs, colors);
-    chunk = (1 / (x2 - x1)) * +window.resolutionConfig.value;
-    ctxs = [];
-    colors = [];
+const colors = [0xffffff, 0x000000, 0xa0a0a0];
+
+const vertexShader = `
+in vec2 aVertexPosition;
+in vec2 aOffset;
+in vec4 aColor;
+
+uniform mat3 uProjectionMatrix;
+
+varying vec4 vColor;
+
+void main() {
+    vec3 pos = uProjectionMatrix * vec3(aVertexPosition + aOffset, 1.0);
+    gl_Position = vec4(pos.xy, 0.0, 1.0);
+    vColor = aColor;
+}
+`;
+
+const fragmentShader = `
+    varying vec4 vColor;
+    void main() {
+        gl_FragColor = vColor;
+    }
+`;
+
+const shader = PIXI.Shader.from({
+  gl: { vertex: vertexShader, fragment: fragmentShader },
+});
+
+const CHUNK_AMOUNT = 5;
+let cache = {};
+const render = (x1, x2, y1, y2, color, cont) => {
+  const width = x2 - x1;
+  const height = y2 - y1;
+  console.assert(width == height);
+
+  let offsets, colors, count;
+  if (width in cache) {
+    const elem = cache[width];
+    offsets = elem.offsets;
+    colors = elem.colors;
+    count = elem.count;
+  } else {
+    offsets = new Float32Array(CHUNK_AMOUNT * 4);
+    colors = new Float32Array(CHUNK_AMOUNT * 4);
+    count = { n: 0 };
+    cache[width] = { offsets, colors, count };
   }
 
-  ctxs.push({ x: [x1, x2], y: [y1, y2] });
-  colors.push(color);
-  chunk--;
-  // drawAt([x1, x2], [y1, y2], color);
+  offsets[count.n * 4] = x1;
+  offsets[count.n * 4 + 1] = y1;
+  offsets[count.n * 4 + 2] = x1;
+  offsets[count.n * 4 + 3] = y1;
+
+  colors[count.n * 4] = color == "Black";
+  colors[count.n * 4 + 1] = color == "Grey";
+  colors[count.n * 4 + 2] = color == "White";
+  colors[count.n * 4 + 3] = 1.0; // Alpha
+
+  if (count.n++ == CHUNK_AMOUNT) {
+    const geometry = new PIXI.Geometry();
+    geometry.addAttribute(
+      "aVertexPosition",
+      [
+        0,
+        0, // Top-left
+        width,
+        0, // Top-right
+        width,
+        height, // Bottom-right
+        0,
+        height, // Bottom-left
+      ],
+      2,
+    );
+    geometry.addIndex([0, 1, 2, 0, 2, 3]);
+    geometry.addAttribute("aOffset", offsets, 4, false, true);
+    geometry.addAttribute("aColor", colors, 4, false, true);
+    const mesh = new PIXI.Mesh({ geometry, shader });
+    mesh.drawMode = PIXI.DRAW_MODES.TRIANGLES;
+    // mesh.alpha = 1;
+    // mesh.zIndex = 100;
+    // mesh.blendMode = "overlay";
+    app.stage.addChild(mesh);
+
+    console.log(app.renderer.gl.getError());
+    delete cache[x2 - x1];
+    // count.n = 0;
+  }
 };
 
 const flush = () => {
-  drawScreen(ctxs, colors);
+  console.log(cache);
+  // cache = {};
+  // drawScreen(ctxs, colors);
   console.log("DONE!");
 };
 
