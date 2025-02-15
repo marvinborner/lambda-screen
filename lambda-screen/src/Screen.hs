@@ -3,10 +3,7 @@ module Screen
   , Pos(..)
   , Area(..)
   , Image(..)
-  , topLeft
-  , topRight
-  , bottomLeft
-  , bottomRight
+  , screenSplit
   ) where
 
 data Color = Black | White | Grey
@@ -18,28 +15,20 @@ data Area = Square
   , c :: Color
   }
 
-data Image = Screen Image Image Image Image | Pixel Color
+data Image = Screen [Image] | Pixel Color
 
-topLeft :: Area -> Area
-topLeft (Square { x = Pos x1 x2, y = Pos y1 y2, c = color }) =
-  let xPos = Pos x1 (x1 + (x2 - x1) / 2)
-      yPos = Pos (y1 + (y2 - y1) / 2) y2
-  in  Square xPos yPos color
+screenSplit :: Area -> [Image] -> [Area]
+screenSplit root@(Square { x = Pos x1 x2, c = color }) is =
+  let perRow       = sqrt (fromIntegral $ length is)
+      quadrantSize = (x2 - x1) / perRow
 
-topRight :: Area -> Area
-topRight (Square { x = Pos x1 x2, y = Pos y1 y2, c = color }) =
-  let xPos = Pos (x1 + (x2 - x1) / 2) x2
-      yPos = Pos (y1 + (y2 - y1) / 2) y2
-  in  Square xPos yPos color
-
-bottomLeft :: Area -> Area
-bottomLeft (Square { x = Pos x1 x2, y = Pos y1 y2, c = color }) =
-  let xPos = Pos x1 (x1 + (x2 - x1) / 2)
-      yPos = Pos y1 (y1 + (y2 - y1) / 2)
-  in  Square xPos yPos color
-
-bottomRight :: Area -> Area
-bottomRight (Square { x = Pos x1 x2, y = Pos y1 y2, c = color }) =
-  let xPos = Pos (x1 + (x2 - x1) / 2) x2
-      yPos = Pos y1 (y1 + (y2 - y1) / 2)
-  in  Square xPos yPos color
+      go :: [Image] -> Double -> Double -> [Area]
+      go is col row | col == perRow = go is 0 (row + 1)
+      go (i : is) col row =
+        Square { x = Pos (col * quadrantSize) ((col + 1) * quadrantSize)
+               , y = Pos (row * quadrantSize) ((row + 1) * quadrantSize)
+               , c = color
+               }
+          : go is (col + 1) row
+      go _ _ _ = []
+  in  go is 0 0

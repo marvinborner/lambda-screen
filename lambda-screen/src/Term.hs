@@ -6,6 +6,7 @@ module Term
 
 import           Screen
 
+-- TODO: do we even need de Bruijn indexed Term?
 data Term = Abs Term | App Term Term | Idx Int
   deriving Show
 data HTerm = HAbs (HTerm -> HTerm) | HApp HTerm HTerm | HVar Int
@@ -37,14 +38,34 @@ lower = go 0
   go d (HAbs t  ) = NAbs d $ go (d + 1) (t (HVar d))
   go d (HApp a b) = NApp (go d a) (go d b)
 
+screens :: NTerm -> Maybe [NTerm]
+screens (NAbs n t) = go t
+ where
+  go (NApp a b)        = (b :) <$> go a
+  go (NVar v) | v == n = Just []
+  go _                 = Nothing
+screens _ = Nothing
+
+isPerfect :: Int -> Bool
+isPerfect n = square * square == n
+  where square = floor $ sqrt (fromIntegral n :: Double)
+
+isWhite :: NTerm -> Bool
+isWhite (NAbs n (NAbs _ (NVar v))) = n == v
+isWhite _                          = False
+
+isBlack :: NTerm -> Bool
+isBlack (NAbs _ (NAbs n (NVar v))) = n == v
+isBlack _                          = False
+
 render :: Term -> Image
 render = go . lower . higher
  where
-  go (NAbs x (NApp (NApp (NApp (NApp (NVar y) tl) tr) bl) br)) | x == y =
-    Screen (go tl) (go tr) (go bl) (go br)
-  go (NAbs w (NAbs b (NVar x))) | x == b = Pixel Black
-  go (NAbs w (NAbs b (NVar x))) | x == w = Pixel White
-  go t = error $ "not reducing to screen/pixel " <> show t
+  go t = case screens t of
+    Just s | isPerfect (length s) -> Screen $ go <$> s
+    Nothing | isBlack t           -> Pixel Black
+    Nothing | isWhite t           -> Pixel Black
+    _ -> error $ "not reducing to screen/pixel" <> show t
 
 fromBinary :: String -> Term
 fromBinary = fst . go
