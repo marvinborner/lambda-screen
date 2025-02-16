@@ -1,0 +1,30 @@
+cabal-version:      3.0
+name:               lambda-screen
+version:            0.1.0.0
+license:            MIT
+author:             Marvin Borner
+maintainer:         git@marvinborner.de
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall -O2 -no-hs-main -optl-Wl,--export=onRender -optl-mexec-model=reactor
+
+library
+    exposed-modules:
+        Screen
+        Term
+    hs-source-dirs:   src
+    build-depends:    base
+    default-language: Haskell2010
+
+executable lambda-screen
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:
+        base
+      , lambda-screen
+      , parallel-io
+      , ghc-experimental
+    hs-source-dirs:   app
+    default-language: Haskell2010
