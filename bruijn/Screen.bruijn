@@ -1,6 +1,8 @@
 # MIT License, Copyright (c) 2024 Marvin Borner
 
 :import std/Combinator .
+:import std/Number .
+:import std/List .
 
 # white pixel
 w k
@@ -43,6 +45,72 @@ bl [[[[1]]]]
 
 # id/getter of bottom right pixel
 br [[[[0]]]]
+
+# lifts pixel to higher abstraction without modifying [[[2]]]
+lift [0 b w [[[[1]]]] [[[[0]]]] [[[2]]]]
+
+:test (lift w) ([[[0]]])
+:test (lift b) ([[[1]]])
+:test (lift [[[2]]]) ([[[2]]])
+
+# keeps pixels while wrapping [0 x y]
+# TODO: is this really the minimal solution??
+lift-list-without-stop [0 [[[[0 w [[[[[[0 9 8]]]]]]]]]] [[[[b]]]] [[0]] i i [[1]]]
+
+# lifting to higher abstraction with stop
+lift-list [0 [[[[0 [[[[0]]]] [[[[[[2 9 8]]]]]]]]]] [[[[[[[[1]]]]]]]] [[[1]]] [[[[[[3]]]]]] i [[1]]]
+
+:test (lift-list w) ([[[[0]]]])
+:test (lift-list b) ([[[[1]]]])
+:test (lift-list [0 [[0]] [[1]]]) ([[[[2 [[0]] [[1]]]]]])
+:test (lift-list [[[[0]]]]) ([[[[3]]]])
+
+# collects pixels in screen in a nested list (reverse order)
+# collected pixels are wrapped in an additional abstraction for your convenience
+# not limited to screen size!
+# the hacky complexity is required because of the similarity of screens and white pixels
+# TODO: generalize to fold
+# TODO: support black pixels
+# TODO: make this lazy (no accumulator)
+collect [0 (y [y [[[rec]]] [[0]]]) stop! stop!]
+	stop! [[[[[[[0]]]]]]]
+	clean [0 i i i i i]
+	rec lift-list (0 3 stop! stop!) end [[4 (1 : 0 : 3)]] (2 ([b] : 1)) (2 ([w] : 1))
+		end 1 [[[[5]]]] w
+
+:test (collect [0 w w w w]) ([w] : ([w] : ([w] : {}[w])))
+:test (collect [0 w w w [0 w w]]) (([w] : {}[w]) : ([w] : ([w] : {}[w])))
+:test (collect [0 w w [0 w w] w]) ([w] : (([w] : {}[w]) : ([w] : {}[w])))
+
+# :test (collect [0 w b w b]) (w : (b : (w : {}b)))
+# :test (collect [0 w [0 w b w b] b [0 w w w w]]) (...)
+
+until-layer [collect → (go (+0))]
+	go y [[[1 =? 3 end rec]]]
+		end [[0]]
+		rec 0 [[[(2 deeper) : (5 4 1)]]] end
+			deeper [[7 ++6 4]]
+
+# counts pixels in screen (one layer deep)
+count1 [0 (y [[[rec]]] (+0)) stop!]
+	rec [lift 1 ret 0 0] (2 (inc 1))
+		ret 2
+	stop! [[[2]]]
+
+:test ((count1 [0 w]) =? (+1)) ([[1]])
+:test ((count1 [0 w b w b]) =? (+4)) ([[1]])
+:test ((count1 [0 b w w w b w]) =? (+6)) ([[1]])
+
+# returns the type of the term (screen, white, black)
+# only works for quad-screens (2x2)!
+type4? [0 screen-destroyer black-padding screen-padding i i]
+	screen-destroyer [[[[[[0]]]]]]
+	black-padding [[[[[[1]]]]]]
+	screen-padding [[[[[2]]]]]
+
+:test (type4? (build w b b b)) ([[[2]]])
+:test (type4? b) ([[[1]]])
+:test (type4? w) ([[[0]]])
 
 # extracts pixel at position
 get t
