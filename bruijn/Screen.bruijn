@@ -65,22 +65,44 @@ lift-list [0 [[[[0 [[[[0]]]] [[[[[[2 9 8]]]]]]]]]] [[[[[[[[1]]]]]]]] [[[1]]] [[[
 :test (lift-list [0 [[0]] [[1]]]) ([[[[2 [[0]] [[1]]]]]])
 :test (lift-list [[[[0]]]]) ([[[[3]]]])
 
+stop! [[[[[[[0]]]]]]]
+
+# WARNING: this does not return for infinite screens (see below)
+# TODO: not sure if this is actually 100% correct (especially black pixels)
+consume? y [[0 (1 stop!) i i i i [[[0]]] [[1]]]]
+
+:test (consume? w) ([[0]])
+:test (consume? b) ([[0]])
+:test (consume? [0 w]) ([[0]])
+:test (consume? [0 b]) ([[0]])
+:test (consume? [0 b w [0 w w w]]) ([[0]])
+:test (consume? [0 w [0 w b] w w]) ([[0]])
+:test (consume? [0 w [0 w [0 w [0 w]]]]) ([[0]])
+:test (consume? [0 w b w [0 [0 [0 [0 w] w]]]]) ([[0]])
+:test (consume? stop!) ([[1]])
+
 # collects pixels in screen in a nested list (reverse order)
 # collected pixels are wrapped in an additional abstraction for your convenience
 # not limited to screen size!
 # the hacky complexity is required because of the similarity of screens and white pixels
-# TODO: generalize to fold
-# TODO: support black pixels
-# TODO: make this lazy (no accumulator)
-collect [0 (y [y [[[rec]]] [[0]]]) stop! stop!]
-	stop! [[[[[[[0]]]]]]]
-	clean [0 i i i i i]
-	rec lift-list (0 3 stop! stop!) end [[4 (1 : 0 : 3)]] (2 ([b] : 1)) (2 ([w] : 1))
+# WARNING: this does not support black pixels (just a minor abstraction imbalance)
+# WARNING: I spent 50+h trying to make this work for infinitely deep screens
+#            including a version without accumulator/depth argument (laziness)
+#          unfortunately this is IMPOSSIBLE, since the entire tree needs to be recursed
+#            in order to consume/erase subterms (implication from comparison of stop! and tuples)
+#          DO NOT SPEND TIME ON THIS
+# this can still be useful for finite screens (infinite screens can be manually, forcibly limited)
+collect [[0 (y [[y [[[[rec]]]] 0 [[0]]]] (+0)) stop! stop!]]
+	consume y [[consume? 0 TODO 1]]
+	rec (2 >? 7) consume (lift-list (0 (5 ++2) stop! stop!) end l-cont b-cont w-cont)
 		end 1 [[[[5]]]] w
+		l-cont [[5 4 (1 : 0 : 3)]]
+		b-cont (3 2 ([b] : 1))
+		w-cont (3 2 ([w] : 1))
 
-:test (collect [0 w w w w]) ([w] : ([w] : ([w] : {}[w])))
-:test (collect [0 w w w [0 w w]]) (([w] : {}[w]) : ([w] : ([w] : {}[w])))
-:test (collect [0 w w [0 w w] w]) ([w] : (([w] : {}[w]) : ([w] : {}[w])))
+:test (collect (+1) [0 w w w w]) ([w] : ([w] : ([w] : {}[w])))
+:test (collect (+2) [0 w w w [0 w w]]) (([w] : {}[w]) : ([w] : ([w] : {}[w])))
+:test (collect (+2) [0 w w [0 w w] w]) ([w] : (([w] : {}[w]) : ([w] : {}[w])))
 
 # :test (collect [0 w b w b]) (w : (b : (w : {}b)))
 # :test (collect [0 w [0 w b w b] b [0 w w w w]]) (...)
