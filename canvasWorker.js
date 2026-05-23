@@ -144,7 +144,7 @@ const drawRects = (colors, rects) => {
       const y = rects[j + 1];
       const width = rects[j + 2];
       const height = rects[j + 3];
-      if (width < 3 || height < 3) continue;
+      if (width <= 0 || height <= 0) continue;
       gl.fillStyle = canvasColorFromCode(colors[i]);
       gl.fillRect(x, y, width, height);
     }

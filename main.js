@@ -47,7 +47,7 @@ const colorCode = (color) =>
   color === "white" ? WHITE : color === "black" ? BLACK : UNKNOWN;
 
 const drawRect2D = (ctx, color, x, y, width, height) => {
-  if (width < 3 || height < 3) return;
+  if (width <= 0 || height <= 0) return;
   ctx.fillStyle = colorToCss(color);
   ctx.fillRect(x, y, width, height);
 };
