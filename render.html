@@ -47,7 +47,7 @@
             <select type="range" name="schedulerConfig" id="schedulerConfig">
               <option value="fifo">FIFO/BFS/queue</option>
               <option value="lifo">LIFO/DFS/stack</option>
-              <option value="random">random</option>
+              <option value="random" selected>random</option>
             </select>
           </div>
           <div>
@@ -110,9 +110,7 @@
       const canvas = window.canvas;
       const root = { x: [0, canvas.width], y: [0, canvas.height] };
 
-      const offscreen = canvas.transferControlToOffscreen();
-      const worker = new Worker("canvasWorker.js");
-      worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
+      const worker = createCanvasWorker(canvas, useWebGL);
 
       const render = (t) => {
         clearScreen(worker);
@@ -121,14 +119,6 @@
         window.render.disabled = true;
         window.render.textContent = "Rendering...";
 
-        // TODO: priority queue on context size
-        let scheduler =
-          window.schedulerConfig.value == "lifo"
-            ? (stack) => stack.pop()
-            : window.schedulerConfig.value == "fifo"
-              ? (stack) => stack.shift()
-              : (stack) =>
-                  stack.splice(Math.floor(Math.random() * stack.length), 1)[0];
         const caching = window.cachingConfig.checked;
         const logger = (str) => {
           window.debugInfo.innerHTML += str;
@@ -139,7 +129,13 @@
           let cnt;
           try {
             cnt = reduceLoop(
-              { worker, root, logger, scheduler, caching },
+              {
+                worker,
+                root,
+                logger,
+                schedulerMode: window.schedulerConfig.value,
+                caching,
+              },
               app(t)(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
             );
           } catch (e) {

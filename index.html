@@ -53,6 +53,69 @@
     <script src="main.js"></script>
     <script>
       const SIZE = 500;
+      const galleryQueue = [];
+      let galleryBusy = false;
+
+      const scheduleGalleryJob = (job) => {
+        galleryQueue.push(job);
+        runGalleryQueue();
+      };
+
+      const runGalleryQueue = () => {
+        if (galleryBusy || galleryQueue.length === 0) return;
+        galleryBusy = true;
+        const job = galleryQueue.shift();
+        const finish = () => {
+          galleryBusy = false;
+          setTimeout(runGalleryQueue, 0);
+        };
+        const run = () => {
+          try {
+            const result = job();
+            if (result && typeof result.then === "function") {
+              result.then(finish, finish);
+            } else {
+              finish();
+            }
+          } catch (e) {
+            console.error(e);
+            finish();
+          }
+        };
+
+        if ("requestIdleCallback" in window) {
+          requestIdleCallback(run, { timeout: 500 });
+        } else {
+          setTimeout(run, 0);
+        }
+      };
+
+      const renderGalleryPreset = (canvas, preset) =>
+        new Promise((resolve) => {
+          const worker = createSnapshotWorker(canvas, true, resolve);
+
+          const root = { x: [0, SIZE], y: [0, SIZE] };
+          canceled = false;
+          try {
+            reduceLoop(
+              {
+                worker,
+                root,
+                logger: () => {},
+                schedulerMode: "lifo",
+                caching: true,
+              },
+              app(parse(preset.term))(
+                parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)"),
+              ),
+            );
+            worker.postMessage({ flush: true });
+          } catch (e) {
+            console.error(preset.name, e);
+            worker.terminate();
+            resolve();
+          }
+        });
 
       const params = new URL(window.location.href);
       if (params.searchParams.has("term")) {
@@ -84,41 +147,25 @@
             gallery.appendChild(item);
 
             let rendered = false;
-            const observer = new IntersectionObserver(
-              (entries) => {
-                if (rendered || !entries[0].isIntersecting) return;
-                rendered = true;
-                observer.disconnect();
+            const renderWhenVisible = (entries) => {
+              if (rendered || !entries[0].isIntersecting) return;
+              rendered = true;
+              if (observer) observer.disconnect();
 
-                const offscreen = canvas.transferControlToOffscreen();
-                const worker = new Worker("canvasWorker.js");
-                worker.postMessage({ canvas: offscreen, useWebGL: true }, [
-                  offscreen,
-                ]);
+              scheduleGalleryJob(() => renderGalleryPreset(canvas, preset));
+            };
 
-                const root = { x: [0, SIZE], y: [0, SIZE] };
-                canceled = false;
-                clearCache();
-                try {
-                  reduceLoop(
-                    {
-                      worker,
-                      root,
-                      logger: () => {},
-                      scheduler: (stack) => stack.shift(),
-                      caching: true,
-                    },
-                    app(parse(preset.term))(
-                      parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)"),
-                    ),
-                  );
-                } catch (e) {
-                  console.error(preset.name, e);
-                }
-              },
-              { threshold: 0.1 },
-            );
-            observer.observe(item);
+            const observer =
+              "IntersectionObserver" in window
+                ? new IntersectionObserver(renderWhenVisible, {
+                    threshold: 0.1,
+                  })
+                : null;
+            if (observer) {
+              observer.observe(item);
+            } else {
+              renderWhenVisible([{ isIntersecting: true }]);
+            }
           });
         });
     </script>

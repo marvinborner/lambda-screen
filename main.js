@@ -5,7 +5,8 @@ const error = (s) => {
   clearCache();
   errors.push(s);
   console.error(s);
-  window.error.innerText = "invalid term: " + errors.toReversed().join(", ");
+  window.error.innerText =
+    "invalid term: " + errors.slice().reverse().join(", ");
 };
 const clearErrors = () => {
   errors = [];
@@ -16,12 +17,14 @@ const clearErrors = () => {
 
 let doCache = true;
 
-const allHashes = {};
-const incCache = {};
-const substCache = {};
-const whnfCache = {};
-const snfCache = {};
-const caches = [allHashes, incCache, substCache, whnfCache, snfCache];
+let nextHash = 1;
+const structuralIds = Object.create(null);
+const termCache = Object.create(null);
+const incCache = Object.create(null);
+const substCache = Object.create(null);
+const whnfCache = Object.create(null);
+const snfCache = Object.create(null);
+const caches = [incCache, substCache, whnfCache, snfCache];
 
 const clearCache = () => {
   caches.forEach((cache) =>
@@ -37,30 +40,136 @@ const WHITE = 0;
 const BLACK = 1;
 const UNKNOWN = 2;
 
-const drawAt = (worker, x, y, color) => {
+const colorToCss = (color) =>
+  color === WHITE ? "white" : color === BLACK ? "black" : "#cccccc";
+
+const colorCode = (color) =>
+  color === "white" ? WHITE : color === "black" ? BLACK : UNKNOWN;
+
+const drawRect2D = (ctx, color, x, y, width, height) => {
+  if (width < 3 || height < 3) return;
+  ctx.fillStyle = colorToCss(color);
+  ctx.fillRect(x, y, width, height);
+};
+
+const drawRects2D = (ctx, colors, rects) => {
+  for (let i = 0; i < colors.length; i++) {
+    const j = i * 4;
+    drawRect2D(
+      ctx,
+      colors[i],
+      rects[j],
+      rects[j + 1],
+      rects[j + 2],
+      rects[j + 3],
+    );
+  }
+};
+
+const createCanvasWorker = (canvas, useWebGL) => {
+  if (
+    typeof Worker !== "undefined" &&
+    typeof canvas.transferControlToOffscreen === "function"
+  ) {
+    const offscreen = canvas.transferControlToOffscreen();
+    const worker = new Worker("canvasWorker.js");
+    worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
+    return worker;
+  }
+
+  const ctx = canvas.getContext("2d");
+  return {
+    onmessage: null,
+    terminate() {},
+    postMessage(msg) {
+      if ("clear" in msg) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      } else if ("resize" in msg) {
+        const { width, height } = msg.resize;
+        canvas.width = width;
+        canvas.height = height;
+        ctx.clearRect(0, 0, width, height);
+      } else if ("drawRects" in msg) {
+        const { colors, rects } = msg.drawRects;
+        drawRects2D(ctx, colors, rects);
+      } else if ("drawAt" in msg) {
+        const [color, x, y, width, height] = msg.drawAt;
+        drawRect2D(ctx, colorCode(color), x, y, width, height);
+      } else if ("drawScreen" in msg) {
+        const [colors, xys] = msg.drawScreen;
+        for (let i = 0; i < xys.length; i++) {
+          const [x, y, width, height] = xys[i];
+          drawRect2D(ctx, colorCode(colors[i]), x, y, width, height);
+        }
+      } else if ("flush" in msg && this.onmessage) {
+        this.onmessage({ data: { flushed: true } });
+      }
+    },
+  };
+};
+
+const createSnapshotWorker = (canvas, useWebGL, onDone) => {
+  if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined") {
+    const worker = createCanvasWorker(canvas, useWebGL);
+    worker.onmessage = (event) => {
+      if (event.data.flushed) onDone();
+    };
+    return worker;
+  }
+
+  const worker = new Worker("canvasWorker.js");
+  const ctx = canvas.getContext("2d");
+  worker.onmessage = (event) => {
+    if (event.data.flushed) {
+      worker.terminate();
+      onDone();
+      return;
+    }
+    if (!event.data.snapshot) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(event.data.snapshot, 0, 0);
+    if (event.data.snapshot.close) event.data.snapshot.close();
+    worker.terminate();
+    onDone();
+  };
   worker.postMessage({
-    drawAt: [
-      color == WHITE ? "white" : color == BLACK ? "black" : "#cccccc",
-      x[0],
-      y[0],
-      x[1] - x[0],
-      y[1] - y[0],
-    ],
+    snapshotCanvas: {
+      width: canvas.width,
+      height: canvas.height,
+      useWebGL,
+    },
   });
+  return worker;
+};
+
+const drawAt = (worker, x, y, color) => {
+  const rects = new Float32Array([x[0], y[0], x[1] - x[0], y[1] - y[0]]);
+  const colors = new Uint8Array([color]);
+  worker.postMessage({ drawRects: { colors, rects } }, [
+    colors.buffer,
+    rects.buffer,
+  ]);
 };
 
 const drawScreen = (worker, ctxs, colors) => {
-  ctxs = ctxs.map((ctx) => [
-    ctx.x[0],
-    ctx.y[0],
-    ctx.x[1] - ctx.x[0],
-    ctx.y[1] - ctx.y[0],
-  ]);
-  colors = colors.map((color) =>
-    color == WHITE ? "white" : color == BLACK ? "black" : "#cccccc",
-  );
+  if (ctxs.length === 0) return;
 
-  worker.postMessage({ drawScreen: [colors, ctxs] });
+  const rects = new Float32Array(ctxs.length * 4);
+  const colorBytes = new Uint8Array(colors.length);
+  for (let i = 0; i < ctxs.length; i++) {
+    const ctx = ctxs[i];
+    const j = i * 4;
+    rects[j] = ctx.x[0];
+    rects[j + 1] = ctx.y[0];
+    rects[j + 2] = ctx.x[1] - ctx.x[0];
+    rects[j + 3] = ctx.y[1] - ctx.y[0];
+    colorBytes[i] = colors[i];
+  }
+
+  worker.postMessage({ drawRects: { colors: colorBytes, rects } }, [
+    colorBytes.buffer,
+    rects.buffer,
+  ]);
 };
 
 /* lambda calculus */
@@ -69,46 +178,53 @@ const drawScreen = (worker, ctxs, colors) => {
 // `return null` and `if (foo === null) return null` are the monads of JavaScript!!
 // ---
 
-const hash = (s) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    const chr = s.charCodeAt(i);
-    h = (h << 5) - h + chr;
-    h |= 0;
-  }
-  while (h in allHashes && allHashes[h] !== s) {
-    console.warn("hash collision");
-    h += 1;
-  }
-  allHashes[h] = s;
+const hash = (key) => {
+  let h = structuralIds[key];
+  if (h !== undefined) return h;
+  h = nextHash++;
+  structuralIds[key] = h;
   return h;
+};
+
+const term = (key, make) => {
+  let t = termCache[key];
+  if (t !== undefined) return t;
+  t = make();
+  t.hash = hash(key);
+  termCache[key] = t;
+  return t;
 };
 
 const abs = (body) => {
   if (body === null) return null;
-  const t = { type: "abs", body };
-  t.hash = hash("abs" + body.hash);
-  return t;
+  return term(`a:${body.hash}`, () => ({
+    type: "abs",
+    body,
+    maxFree: body.maxFree <= 0 ? -1 : body.maxFree - 1,
+  }));
 };
 
 const app = (left) => (right) => {
   if (left === null || right === null) return null;
-  const t = { type: "app", left, right };
-  t.hash = hash("app" + left.hash + right.hash);
-  return t;
+  return term(`p:${left.hash}:${right.hash}`, () => ({
+    type: "app",
+    left,
+    right,
+    maxFree: Math.max(left.maxFree, right.maxFree),
+  }));
 };
 
 const idx = (idx) => {
   if (idx === null) return null;
-  const t = { type: "idx", idx };
-  t.hash = hash("idx" + idx);
-  return t;
+  return term(`i:${idx}`, () => ({ type: "idx", idx, maxFree: idx }));
 };
 
 const def = (name) => {
-  const t = { type: "def", name };
-  t.hash = hash("def" + name);
-  return t;
+  return term(`d:${name.length}:${name}`, () => ({
+    type: "def",
+    name,
+    maxFree: -1,
+  }));
 };
 
 const decodeBase64 = (enc) => {
@@ -323,7 +439,7 @@ const parse = (str) => {
         t = parseTerm(line);
         return false;
       }
-      [n, _t] = line.split("=");
+      const [n, _t] = line.split("=");
       defs.push([n.trim(), parseTerm(_t.trim())]);
       return true;
     });
@@ -335,6 +451,7 @@ const parse = (str) => {
 
 // [[1]]=w, [[0]]=b, other=g
 const toColor = (t) => {
+  if (t === null) return UNKNOWN;
   if (t.type === "abs" && t.body.type === "abs" && t.body.body.type === "idx")
     return t.body.body.idx === 1
       ? WHITE
@@ -350,8 +467,11 @@ const seemsScreeny = (t) => {
   if (t.type !== "abs") return false;
   t = t.body;
   let d = 0;
-  while ((d++, t.type === "app")) t = t.left;
-  return t.type === "idx" && t.idx === 0 ? d - 1 : false;
+  while (t.type === "app") {
+    d++;
+    t = t.left;
+  }
+  return t.type === "idx" && t.idx === 0 ? d : false;
 };
 
 const getSubScreens = (t) => {
@@ -392,8 +512,9 @@ const inc = (i, t) => {
     error("in inc");
     return null;
   }
+  if (t.maxFree < i) return t;
 
-  const h = hash("" + i + t.hash);
+  const h = `${i}:${t.hash}`;
   if (doCache && h in incCache) return incCache[h];
 
   let newT;
@@ -412,7 +533,7 @@ const inc = (i, t) => {
       return null;
   }
 
-  incCache[h] = newT;
+  if (doCache) incCache[h] = newT;
   return newT;
 };
 
@@ -421,8 +542,9 @@ const subst = (i, t, s) => {
     error("in subst");
     return null;
   }
+  if (t.maxFree < i) return t;
 
-  const h = hash("" + i + t.hash + s.hash);
+  const h = `${i}:${t.hash}:${s.hash}`;
   if (doCache && h in substCache) return substCache[h];
 
   let newT;
@@ -441,7 +563,7 @@ const subst = (i, t, s) => {
       return null;
   }
 
-  substCache[h] = newT;
+  if (doCache) substCache[h] = newT;
   return newT;
 };
 
@@ -497,14 +619,12 @@ const whnf = (t) => {
       break;
   }
 
-  whnfCache[t.hash] = newT;
+  if (doCache) whnfCache[t.hash] = newT;
   return newT;
 };
 
 // screen normal form
 // one of [((((0 tl) tr) bl) br) ...], [[0]], [[1]]
-// TODO: Is this form of caching fundamentally wrong? (incongruences after subst or idx shifts!?)
-//       Does this only work accidentally because of WHNF, deliberate symmetry and closed terms or sth?
 const snf = (_t) => {
   if (doCache && _t !== null && _t.hash in snfCache) return snfCache[_t.hash];
 
@@ -539,8 +659,48 @@ const snf = (_t) => {
     }
   }
 
-  snfCache[_t.hash] = t;
+  if (doCache) snfCache[_t.hash] = t;
   return t;
+};
+
+const createScheduler = (stack, mode = "random") => {
+  if (typeof mode === "function")
+    return {
+      hasWork: () => stack.length > 0,
+      take: () => mode(stack),
+    };
+
+  if (mode === "fifo") {
+    let head = 0;
+    return {
+      hasWork: () => head < stack.length,
+      take: () => {
+        const item = stack[head++];
+        if (head > 4096 && head * 2 > stack.length) {
+          stack.splice(0, head);
+          head = 0;
+        }
+        return item;
+      },
+    };
+  }
+
+  if (mode === "lifo")
+    return {
+      hasWork: () => stack.length > 0,
+      take: () => stack.pop(),
+    };
+
+  return {
+    hasWork: () => stack.length > 0,
+    take: () => {
+      const i = Math.floor(Math.random() * stack.length);
+      const item = stack[i];
+      stack[i] = stack[stack.length - 1];
+      stack.pop();
+      return item;
+    },
+  };
 };
 
 const reduceLoop = (conf, _t) => {
@@ -548,11 +708,23 @@ const reduceLoop = (conf, _t) => {
   let cnt = 0;
   logger(`Term size: ${size(_t)} bit (BLC)<br>`);
   const stack = [{ ctx: root, t: _t }];
+  const work = createScheduler(stack, conf.schedulerMode || scheduler);
   doCache = caching;
-  for (cnt = 0; stack.length > 0 && !canceled; cnt++) {
-    let { ctx, t } = scheduler(stack);
 
-    if (toColor(t) !== UNKNOWN) continue;
+  for (cnt = 0; work.hasWork() && !canceled; cnt++) {
+    let { ctx, t } = work.take();
+
+    let color = toColor(t);
+    if (color !== UNKNOWN) {
+      drawAt(worker, ctx.x, ctx.y, color);
+      continue;
+    }
+
+    // Finite rendering stops here; unreduced subtrees at this size are grey.
+    if (ctx.x[1] - ctx.x[0] < MAXRES || ctx.y[1] - ctx.y[0] < MAXRES) {
+      drawAt(worker, ctx.x, ctx.y, UNKNOWN);
+      continue;
+    }
 
     // could loop in gnf, therefore limit depth
     MAX = 10000000;
@@ -573,17 +745,21 @@ const reduceLoop = (conf, _t) => {
       return null;
     }
 
-    // smaller resolutions apparently crash the browser tab lol
-    if (ctx.x[1] - ctx.x[0] < MAXRES) continue;
+    color = toColor(t);
+    if (color !== UNKNOWN) {
+      drawAt(worker, ctx.x, ctx.y, color);
+      continue;
+    }
 
     let n;
-    if ((n = seemsScreeny(t)) && n > 3 && Math.sqrt(n) % 1 === 0) {
+    const splitSize = Math.sqrt((n = seemsScreeny(t)));
+    if (n > 0 && Number.isInteger(splitSize)) {
       const subScreens = getSubScreens(t);
       console.assert(n == subScreens.length);
 
-      const splitSize = Math.sqrt(n);
       const ctxWidth = (ctx.x[1] - ctx.x[0]) / splitSize;
       const ctxHeight = (ctx.y[1] - ctx.y[0]) / splitSize;
+      const isCutoff = ctxWidth < MAXRES || ctxHeight < MAXRES;
 
       const ctxs = [];
       const colors = [];
@@ -594,9 +770,18 @@ const reduceLoop = (conf, _t) => {
       for (let i = 0; i < n; i++) {
         const current = subScreens[i];
         const subCtx = { x: [x0, x0 + ctxWidth], y: [y0, y0 + ctxHeight] };
-        ctxs.push(subCtx);
-        stack.push({ ctx: subCtx, t: current.right });
-        colors.push(toColor(current.right));
+        const subColor = toColor(current.right);
+        if (subColor === UNKNOWN) {
+          if (isCutoff) {
+            ctxs.push(subCtx);
+            colors.push(UNKNOWN);
+          } else {
+            stack.push({ ctx: subCtx, t: current.right });
+          }
+        } else {
+          ctxs.push(subCtx);
+          colors.push(subColor);
+        }
 
         if ((i + 1) % splitSize == 0) {
           x0 = ctx.x[0];
