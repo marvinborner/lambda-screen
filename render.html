@@ -96,15 +96,12 @@
       if (params.searchParams.has("webgl"))
         useWebGL = params.searchParams.get("webgl") == "true";
 
-      const isPhone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(
-        navigator.userAgent,
-      );
-      if ((isPhone || isSafari) && !params.searchParams.has("webgl")) {
+      const isSmallScreen = matchMedia("(max-width: 700px)").matches;
+      if (isSmallScreen && !params.searchParams.has("webgl")) {
         useWebGL = false;
         MAXRES = 3;
         window.debugInfo.innerHTML +=
-          "detected phone/Safari, falling back to Canvas with MAXRES=3. Reload with ?webgl=true to still try webgl.<br>";
+          "detected phone, falling back to Canvas with MAXRES=3. Reload with ?webgl=true to still try webgl.<br>";
       }
 
       const canvas = window.canvas;

@@ -52,9 +52,23 @@
     <div class="gallery" id="gallery"></div>
     <script src="main.js"></script>
     <script>
-      const SIZE = 500;
       const galleryQueue = [];
       let galleryBusy = false;
+
+      let useWebGL = true;
+      const params = new URL(window.location.href);
+      if (params.searchParams.has("webgl"))
+        useWebGL = params.searchParams.get("webgl") == "true";
+
+      let SIZE = 500;
+      const isSmallScreen = matchMedia("(max-width: 700px)").matches;
+      if (isSmallScreen && !params.searchParams.has("webgl")) {
+        useWebGL = false;
+        SIZE = 400;
+        console.log(
+          "detected phone, falling back to Canvas with SIZE=300. Reload with ?webgl=true to still try webgl.",
+        );
+      }
 
       const scheduleGalleryJob = (job) => {
         galleryQueue.push(job);
@@ -92,7 +106,7 @@
 
       const renderGalleryPreset = (canvas, preset) =>
         new Promise((resolve) => {
-          const worker = createSnapshotWorker(canvas, true, resolve);
+          const worker = createSnapshotWorker(canvas, useWebGL, resolve);
 
           const root = { x: [0, SIZE], y: [0, SIZE] };
           canceled = false;
@@ -117,7 +131,6 @@
           }
         });
 
-      const params = new URL(window.location.href);
       if (params.searchParams.has("term")) {
         window.location.href =
           "render.html?term=" + params.searchParams.get("term");
