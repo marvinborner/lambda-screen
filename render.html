@@ -1,0 +1,206 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Lambda Screen - Render</title>
+    <link rel="stylesheet" href="style.css" type="text/css" media="all" />
+  </head>
+  <body>
+    <main>
+      <canvas height="1000" width="1000" id="canvas"></canvas>
+      <div>
+        <div class="inputWrap">
+          Load preset:
+          <select id="examples">
+            <option value="" selected>Empty</option>
+          </select>
+        </div>
+        <span id="error"></span>
+        <textarea
+          type="text"
+          rows="6"
+          placeholder="e.g. \\(0...) or 00000110... (BLC) or [[0 ...]] (bruijn)"
+          name="term"
+          id="term"
+        ></textarea>
+      </div>
+      <button id="render">Render!</button>
+      <details>
+        <summary>Configuration</summary>
+        <fieldset>
+          <div>
+            <label for="resolutionConfig">Resolution: </label>
+            <input
+              type="range"
+              min="100"
+              max="10000"
+              step="10"
+              name="resolutionConfig"
+              id="resolutionConfig"
+              value="1000"
+            />
+            <em id="resolutionConfigLabel" style="font-style: normal">1000</em>
+          </div>
+          <div>
+            <label for="schedulerConfig">Scheduler: </label>
+            <select type="range" name="schedulerConfig" id="schedulerConfig">
+              <option value="fifo">FIFO/BFS/queue</option>
+              <option value="lifo">LIFO/DFS/stack</option>
+              <option value="random">random</option>
+            </select>
+          </div>
+          <div>
+            <label for="cachingConfig">Caching: </label>
+            <input
+              type="checkbox"
+              name="cachingConfig"
+              id="cachingConfig"
+              checked="checked"
+            />
+          </div>
+        </fieldset>
+        <b>Warning:</b> Larger resolutions will often need exponentially more
+        memory/computation!
+        <br />
+        <br />
+        <b>Debug information:</b>
+        <pre id="debugInfo"></pre>
+      </details>
+      <footer>
+        <ul>
+          <li><a href="index.html">Gallery</a></li>
+          <li>
+            <a
+              href="https://text.marvinborner.de/2024-03-25-02.html"
+              target="_blank"
+              >Blog post</a
+            >
+          </li>
+          <li><a href="javascript:helpSyntax()">Syntax</a></li>
+          <li>
+            <a
+              href="https://github.com/marvinborner/lambda-screen"
+              target="_blank"
+              >Source-code</a
+            >
+          </li>
+        </ul>
+      </footer>
+    </main>
+    <script src="main.js"></script>
+    <script charset="utf-8">
+      const params = new URL(window.location.href);
+
+      let useWebGL = true;
+      if (params.searchParams.has("webgl"))
+        useWebGL = params.searchParams.get("webgl") == "true";
+
+      const isPhone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(
+        navigator.userAgent,
+      );
+      if ((isPhone || isSafari) && !params.searchParams.has("webgl")) {
+        useWebGL = false;
+        MAXRES = 3;
+        window.debugInfo.innerHTML +=
+          "detected phone/Safari, falling back to Canvas with MAXRES=3. Reload with ?webgl=true to still try webgl.<br>";
+      }
+
+      const canvas = window.canvas;
+      const root = { x: [0, canvas.width], y: [0, canvas.height] };
+
+      const offscreen = canvas.transferControlToOffscreen();
+      const worker = new Worker("canvasWorker.js");
+      worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
+
+      const render = (t) => {
+        clearScreen(worker);
+        clearErrors();
+        console.time("reduceLoop");
+        window.render.disabled = true;
+        window.render.textContent = "Rendering...";
+
+        // TODO: priority queue on context size
+        let scheduler =
+          window.schedulerConfig.value == "lifo"
+            ? (stack) => stack.pop()
+            : window.schedulerConfig.value == "fifo"
+              ? (stack) => stack.shift()
+              : (stack) =>
+                  stack.splice(Math.floor(Math.random() * stack.length), 1)[0];
+        const caching = window.cachingConfig.checked;
+        const logger = (str) => {
+          window.debugInfo.innerHTML += str;
+        };
+
+        // button doesn't update text without timeout
+        setTimeout(() => {
+          let cnt;
+          try {
+            cnt = reduceLoop(
+              { worker, root, logger, scheduler, caching },
+              app(t)(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
+            );
+          } catch (e) {
+            console.error(e);
+          } finally {
+            window.render.textContent = "Render!";
+            window.render.disabled = false;
+            window.debugInfo.innerHTML += `rendered ${cnt} squares<br>`;
+            console.timeEnd("reduceLoop");
+          }
+        }, 0);
+      };
+
+      fetch("presets.json")
+        .then((r) => r.json())
+        .then((presets) => {
+          presets.forEach((preset) => {
+            const opt = document.createElement("option");
+            opt.value = preset.term;
+            opt.textContent = preset.name;
+            window.examples.appendChild(opt);
+          });
+
+          if (params.searchParams.has("preset")) {
+            const text = decodeURIComponent(params.searchParams.get("preset"));
+            window.term.value = text;
+            render(parse(text));
+          } else if (params.searchParams.has("term")) {
+            const t = parseBLC(
+              decodeBase64(params.searchParams.get("term")),
+            )[0];
+            window.term.innerText = show(t);
+            render(t);
+          }
+        });
+
+      window.examples.addEventListener("change", () => {
+        clearScreen(worker);
+        window.term.value = window.examples.value;
+      });
+
+      window.render.addEventListener("click", () => {
+        const t = parse(window.term.value);
+        render(t);
+        params.searchParams.set("term", encodeBase64(t));
+        window.history.pushState({ path: params.href }, "", params.href);
+      });
+
+      window.resolutionConfig.addEventListener("input", () => {
+        const resolution = +window.resolutionConfig.value;
+        document.getElementById("resolutionConfigLabel").innerHTML = resolution;
+      });
+
+      window.resolutionConfig.addEventListener("change", () => {
+        const resolution = +window.resolutionConfig.value;
+        root.x[1] = resolution;
+        root.y[1] = resolution;
+        worker.postMessage({
+          resize: { width: resolution, height: resolution },
+        });
+      });
+    </script>
+  </body>
+</html>

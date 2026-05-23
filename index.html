@@ -3,451 +3,124 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>Lambda Screen - Fractals in Pure Lambda Calculus</title>
+    <title>Lambda Screen - Gallery</title>
     <link rel="stylesheet" href="style.css" type="text/css" media="all" />
+    <style>
+      body,
+      html {
+        font-family: sans-serif;
+      }
+      h1 {
+        text-align: center;
+      }
+      .gallery {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+        width: 90vw;
+        margin: 16px auto;
+      }
+      @media (max-width: 1000px) {
+        .gallery {
+          grid-template-columns: 1fr 1fr !important;
+        }
+      }
+      @media (max-width: 600px) {
+        .gallery {
+          grid-template-columns: 1fr !important;
+        }
+      }
+      .gallery-item {
+        cursor: pointer;
+      }
+      .gallery-item canvas {
+        width: 100%;
+        aspect-ratio: 1;
+        border: 1px solid black;
+        background-color: white;
+        display: block;
+      }
+      .gallery-item .label {
+        text-align: center;
+        padding: 4px;
+      }
+    </style>
   </head>
   <body>
-    <main>
-      <canvas height="1000" width="1000" id="canvas"></canvas>
-      <div>
-        <div class="inputWrap">
-          Load preset:
-          <select id="examples">
-            <option value="" selected>Empty</option>
-            <option
-              value="-- the final term gets applied with the empty screen
-\0"
-            >
-              Identity
-            </option>
-            <option
-              value="-- define substitutions of top-left, top-right, bottom-left, bottom-right black pixels
-tl = \\0
-tr = \\0
-bl = \\0
-br = \\0
-
--- two abstractions to ignore the screen state and replace the entire screen
-\\(0 tl tr bl br)"
-            >
-              Just black
-            </option>
-            <option
-              value="map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
-invert = \\\(2 0 1)
-
--- the first argument is the empty screen, therefore we can use point-free style
-(map invert)"
-            >
-              Invert
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-\(y \\(0 1 \\1 \\0 1))"
-            >
-              Diagonal
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = (y \\(0 1 \\0 \\0 1))
-tr = \\0
-bl = (y \\(0 \\0 1 1 \\0))
-br = (y \\(0 1 \\0 \\0 1))
-\\(0 tl tr bl br)"
-            >
-              Lambda
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = (y \\(0 1 \\0 \\1 1))
-tr = (y \\(0 1 \\1 \\0 1))
-bl = (y \\(0 \\1 1 1 \\0))
-br = (y \\(0 \\0 1 1 \\1))
-\\(0 tl tr bl br)"
-            >
-              Arrow
-            </option>
-            <option
-              value="-- note how no white gets drawn since the highlighted parts would be infinitely detailed
-y = \(\(0 0) \(1 (0 0)))
-\(y \\(0 1 \\0 1 1))"
-            >
-              Sierpiński triangle
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = (y \\(0 \\0 1 1 1))
-tr = (y \\(0 1 \\0 1 1))
-bl = (y \\(0 1 1 \\0 1))
-br = (y \\(0 1 1 1 \\0))
-\\(0 tl tr bl br)"
-            >
-              Sierpiński square
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-sa = (y \\(0 \\0 1 1 1))
-sb = (y \\(0 1 \\0 1 1))
-sc = (y \\(0 1 1 \\0 1))
-sd = (y \\(0 1 1 1 \\0))
-tl = \\\\\(0 4 3 2 sd)
-tr = \\\\\(0 4 3 sc 1)
-bl = \\\\\(0 4 sb 2 1)
-br = \\\\\(0 sa 3 2 1)
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              Sierpiń-T-square v1
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-oncesa = (y \\(0 \\0 1 1 1))
-oncesb = (y \\(0 1 \\0 1 1))
-oncesc = (y \\(0 1 1 \\0 1))
-oncesd = (y \\(0 1 1 1 \\0))
-sa = (y \\(0 \\0 1 1 oncesd))
-sb = (y \\(0 1 \\0 oncesc 1))
-sc = (y \\(0 1 oncesb \\0 1))
-sd = (y \\(0 oncesa 1 1 \\0))
-tl = \\\\\(0 4 3 2 sd)
-tr = \\\\\(0 4 3 sc 1)
-bl = \\\\\(0 4 sb 2 1)
-br = \\\\\(0 sa 3 2 1)
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              Sierpiń-T-square v2
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-oncesa = (y \\(0 \\0 1 1 1))
-oncesb = (y \\(0 1 \\0 1 1))
-oncesc = (y \\(0 1 1 \\0 1))
-oncesd = (y \\(0 1 1 1 \\0))
-sa = (y \\(0 \\0 1 1 1) \\\\\(0 oncesd 3 2 1))
-sb = (y \\(0 1 \\0 1 1) \\\\\(0 4 oncesc 2 1))
-sc = (y \\(0 1 1 \\0 1) \\\\\(0 4 3 oncesb 1))
-sd = (y \\(0 1 1 1 \\0) \\\\\(0 4 3 2 oncesa))
-tl = \\\\\(0 4 3 2 sa)
-tr = \\\\\(0 4 3 sb 1)
-bl = \\\\\(0 4 sc 2 1)
-br = \\\\\(0 sd 3 2 1)
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              Sierpiń-T-square v3
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-\(y \\(0 1 1 1 1 \\0 1 1 1 1))"
-            >
-              Sierpiński carpet (3x3)
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = \\\\\(0 4 3 2 \(0 \(0 \\0 \\1 \\1 \\1) \\1 \\1 \\0))
-tr = \\\\\(0 4 3 \(0 \\1 \(0 \\1 \\0 \\1 \\1) \\0 \\1) 1)
-bl = \\\\\(0 4 \(0 \\1 \\0 \(0 \\1 \\1 \\0 \\1) \\1) 2 1)
-br = \\\\\(0 \(0 \\0 \\1 \\1 \(0 \\1 \\1 \\1 \\0)) 3 2 1)
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              Sierpiński carpet (2x2 variant)
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = \\\\\(0 4 3 2 \\0)
-tr = \\\\\(0 4 3 \\0 1)
-bl = \\\\\(0 4 \\0 2 1)
-br = \\\\\(0 \\0 3 2 1)
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              T-square
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-\(y \\(0 \\1 1 \\1 1 1 1 \\1 1 \\1))"
-            >
-              Snowflake 3x3
-            </option>
-            <option
-              value="-- variation of T-Square
-y = \(\(0 0) \(1 (0 0)))
-tl = \\\\\(0 \\1 3 2 1)
-tr = \\\\\(0 4 \\1 2 1)
-bl = \\\\\(0 4 3 \\1 1)
-br = \\\\\(0 4 3 2 \\1)
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              Snowflake 2x2
-            </option>
-            <option
-              value="s=\\0
-quad = \\(0 1 1 1 1)
-y = \(\(0 0) \(1 (0 0)))
-\(y \\(0 (quad \(0 2 s s s)) (quad \(0 s 2 s s)) (quad \(0 s s 2 s)) (quad \(0 s s s 2))))"
-            >
-              Cantor dust
-            </option>
-            <option
-              value="-- basically a 3x3 T-square
-y = \(\(0 0) \(1 (0 0)))
-a = \\\\\\\\\\(0 9 8 7 6 5 4 3 2 \\0)
-b = \\\\\\\\\\(0 9 8 7 6 5 4 3 \\0 1)
-c = \\\\\\\\\\(0 9 8 7 6 5 4 \\0 2 1)
-d = \\\\\\\\\\(0 9 8 7 6 5 \\0 3 2 1)
-e = \\\\\\\\\\(0 9 8 7 6 \\0 4 3 2 1)
-f = \\\\\\\\\\(0 9 8 7 \\0 5 4 3 2 1)
-g = \\\\\\\\\\(0 9 8 \\0 6 5 4 3 2 1)
-h = \\\\\\\\\\(0 9 \\0 7 6 5 4 3 2 1)
-i = \\\\\\\\\\(0 \\0 8 7 6 5 4 3 2 1)
-\(y \\(0 (1 a) (1 b) (1 c) (1 d) (1 e) (1 f) (1 g) (1 h) (1 i)))"
-            >
-              Minesweeper
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-
-stl = \\\\\(0 \\1 3 2 1)
-str = \\\\\(0 4 \\1 2 1)
-sbl = \\\\\(0 4 3 \\1 1)
-sbr = \\\\\(0 4 3 2 \\1)
-sf = (y \\(0 (1 stl) (1 str) (1 sbl) (1 sbr)))
-
-tl = \(0 \\1 (y \\(0 \\1 1 1 \\0)) \\1 (y \\(0 \(0 \\1 sf \\1 \\1) 1 1 \\0)))
-tr = \(0 (y \\(0 1 \\1 \\0 1)) \\1 (y \\(0 1 \(0 sf \\1 \\1 \\1) \\0 1)) \\1)
-bl = \(0 \\1 (y \\(0 \(0 sf \\1 \\1 \\1) 1 1 \\0)) \\1 \(0 \(0 \\1 sf \\1 \\1) \(0 \\1 \\0 \\1 \\0) \\1 \(0 \\1 \\0 \\1 \\0)))
-br = \(0 (y \\(0 1 \(0 \\1 sf \\1 \\1) \\0 1)) \\1 \(0 \(0 \\0 \\1 \\0 \\1) \(0 \\1 sf \\1 \\1) \(0 \\0 \\1 \\0 \\1) \\1) \\1)
-\\(0 tl tr bl br)"
-            >
-              Christmas tree
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = \(y \\(0 \(0 3 \\0 \\0 3) 1 1 \(0 3 \\1 \\1 3)))
-tr = \(y \\(0 1 \(0 \\0 3 3 \\0) \(0 \\1 3 3 \\1) 1))
-bl = \(y \\(0 1 \(0 \\1 3 3 \\1) \(0 \\0 3 3 \\0) 1))
-br = \(y \\(0 \(0 3 \\1 \\1 3) 1 1 \(0 3 \\0 \\0 3)))
-\(y \\(0 (tl 1) (tr 1) (bl 1) (br 1)))"
-            >
-              Moldy Square
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = \\\\\(y \(1 \\1 2 \\0 5))
-tr = \\\\\(y \(1 3 \\0 4 \\1))
-bl = \\\\\(y \(1 \\1 3 \\0 4))
-br = \\\\\(y \(1 2 \\0 5 \\1))
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              Squiggly Cross
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-tl = \\\\(y \\(0 \(0 \\0 4 5 6) 1 1 \\1))
-tr = \\\\(y \\(0 1 \(0 3 \\0 5 6) \\1 1))
-bl = \\\\(y \\(0 1 \\1 \(0 3 4 \\0 6) 1))
-br = \\\\(y \\(0 \\1 1 1 \(0 3 4 5 \\0)))
-\(y \\(0 (1 tl) (1 tr) (1 bl) (1 br)))"
-            >
-              Sunrise
-            </option>
-            <option
-              value="y = \(\(0 0) \(1 (0 0)))
-a = \\\\(y \\(0 \(0 \\0 4 5 6) 1 1 \(0 3 4 5 \\0)))
-b = \\\\(y \\(0 1 \(0 3 \\0 5 6) \(0 3 4 \\0 6) 1))
-\(y \\(0 (1 a) (1 b) (1 b) (1 a))"
-            >
-              Recursive Nonsense
-            </option>
-            <option
-              value="-- some common definitions for copy-pasting
-w = \\1
-b = \\0
-isw = \0
-isb = \(0 b w)
-invert = \\\(2 0 1)
-build = \\\\\((((0 4) 3) 2) 1)
-empty = (build b b b b)
-tl = \\\\3
-tr = \\\\2
-bl = \\\\1
-br = \\\\0
-get = \\(0 1)
-settl = \\(1 \\\\\(0 5 3 2 1))
-settr = \\(1 \\\\\(0 4 5 2 1))
-setbl = \\(1 \\\\\(0 4 3 5 1))
-setbr = \\(1 \\\\\(0 4 3 2 5))
-map = \\(0 \\\\\(0 (6 4) (6 3) (6 2) (6 1)))
-\0"
-            >
-              Template
-            </option>
-          </select>
-        </div>
-        <span id="error"></span>
-        <textarea
-          type="text"
-          rows="6"
-          placeholder="e.g. \\(0...) or 00000110... (BLC) or [[0 ...]] (bruijn)"
-          name="term"
-          id="term"
-        ></textarea>
-      </div>
-      <button id="render">Render!</button>
-      <details>
-        <summary>Configuration</summary>
-        <fieldset>
-          <div>
-            <label for="resolutionConfig">Resolution: </label>
-            <input
-              type="range"
-              min="100"
-              max="10000"
-              step="10"
-              name="resolutionConfig"
-              id="resolutionConfig"
-              value="1000"
-            />
-            <em id="resolutionConfigLabel" style="font-style: normal">1000</em>
-          </div>
-          <div>
-            <label for="schedulerConfig">Scheduler: </label>
-            <select type="range" name="schedulerConfig" id="schedulerConfig">
-              <option value="fifo">FIFO/BFS/queue</option>
-              <option value="lifo">LIFO/DFS/stack</option>
-              <option value="random">random</option>
-            </select>
-          </div>
-          <div>
-            <label for="cachingConfig">Caching: </label>
-            <input
-              type="checkbox"
-              name="cachingConfig"
-              id="cachingConfig"
-              checked="checked"
-            />
-          </div>
-        </fieldset>
-        <b>Warning:</b> Larger resolutions will often need exponentially more
-        memory/computation!
-        <br />
-        <br />
-        <b>Debug information:</b>
-        <pre id="debugInfo"></pre>
-      </details>
-      <footer>
-        <ul>
-          <li>
-            <a
-              href="https://text.marvinborner.de/2024-03-25-02.html"
-              target="_blank"
-              >Blog post</a
-            >
-          </li>
-          <li><a href="javascript:helpSyntax()">Syntax</a></li>
-          <li>
-            <a
-              href="https://github.com/marvinborner/lambda-screen"
-              target="_blank"
-              >Source-code</a
-            >
-          </li>
-        </ul>
-      </footer>
-    </main>
+    <h1>Lambda Screen</h1>
+    <span id="error" hidden></span>
+    <div class="gallery" id="gallery"></div>
     <script src="main.js"></script>
-    <script charset="utf-8">
+    <script>
+      const SIZE = 500;
+
       const params = new URL(window.location.href);
-
-      let useWebGL = true;
-      if (params.searchParams.has("webgl"))
-        useWebGL = params.searchParams.get("webgl") == "true";
-
-      const isPhone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(
-        navigator.userAgent,
-      );
-      if ((isPhone || isSafari) && !params.searchParams.has("webgl")) {
-        useWebGL = false;
-        MAXRES = 3;
-        window.debugInfo.innerHTML +=
-          "detected phone/Safari, falling back to Canvas with MAXRES=3. Reload with ?webgl=true to still try webgl.<br>";
-      }
-
-      const canvas = window.canvas;
-      const root = { x: [0, canvas.width], y: [0, canvas.height] };
-
-      const offscreen = canvas.transferControlToOffscreen();
-      const worker = new Worker("canvasWorker.js");
-      worker.postMessage({ canvas: offscreen, useWebGL }, [offscreen]);
-
-      const render = (t) => {
-        clearScreen(worker);
-        clearErrors();
-        console.time("reduceLoop");
-        window.render.disabled = true;
-        window.render.textContent = "Rendering...";
-
-        // TODO: priority queue on context size
-        let scheduler =
-          window.schedulerConfig.value == "lifo"
-            ? (stack) => stack.pop()
-            : window.schedulerConfig.value == "fifo"
-              ? (stack) => stack.shift()
-              : (stack) =>
-                  stack.splice(Math.floor(Math.random() * stack.length), 1)[0];
-        const caching = window.cachingConfig.checked;
-        const logger = (str) => {
-          window.debugInfo.innerHTML += str;
-        };
-
-        // button doesn't update text without timeout
-        setTimeout(() => {
-          let cnt;
-          try {
-            cnt = reduceLoop(
-              { worker, root, logger, scheduler, caching },
-              app(t)(parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)")),
-            );
-          } catch (e) {
-            console.error(e);
-          } finally {
-            window.render.textContent = "Render!";
-            window.render.disabled = false;
-            window.debugInfo.innerHTML += `rendered ${cnt} squares<br>`;
-            console.timeEnd("reduceLoop");
-          }
-        }, 0);
-      };
-
       if (params.searchParams.has("term")) {
-        const t = parseBLC(decodeBase64(params.searchParams.get("term")))[0];
-        window.term.innerText = show(t);
-        render(t);
+        window.location.href =
+          "render.html?term=" + params.searchParams.get("term");
       }
 
-      window.examples.addEventListener("change", () => {
-        clearScreen(worker);
-        window.term.value = window.examples.value;
-      });
+      fetch("presets.json")
+        .then((r) => r.json())
+        .then((presets) => {
+          presets.forEach((preset) => {
+            const item = document.createElement("div");
+            item.className = "gallery-item";
 
-      window.render.addEventListener("click", () => {
-        const t = parse(window.term.value);
-        render(t);
-        params.searchParams.set("term", encodeBase64(t));
-        window.history.pushState({ path: params.href }, "", params.href);
-      });
+            const canvas = document.createElement("canvas");
+            canvas.width = SIZE;
+            canvas.height = SIZE;
 
-      window.resolutionConfig.addEventListener("input", () => {
-        const resolution = +window.resolutionConfig.value;
-        document.getElementById("resolutionConfigLabel").innerHTML = resolution;
-      });
+            const label = document.createElement("div");
+            label.className = "label";
+            label.textContent = preset.name;
 
-      window.resolutionConfig.addEventListener("change", () => {
-        const resolution = +window.resolutionConfig.value;
-        root.x[1] = resolution;
-        root.y[1] = resolution;
-        worker.postMessage({
-          resize: { width: resolution, height: resolution },
+            item.appendChild(canvas);
+            item.appendChild(label);
+            item.addEventListener("click", () => {
+              window.location.href =
+                "render.html?preset=" + encodeURIComponent(preset.term);
+            });
+            gallery.appendChild(item);
+
+            let rendered = false;
+            const observer = new IntersectionObserver(
+              (entries) => {
+                if (rendered || !entries[0].isIntersecting) return;
+                rendered = true;
+                observer.disconnect();
+
+                const offscreen = canvas.transferControlToOffscreen();
+                const worker = new Worker("canvasWorker.js");
+                worker.postMessage({ canvas: offscreen, useWebGL: true }, [
+                  offscreen,
+                ]);
+
+                const root = { x: [0, SIZE], y: [0, SIZE] };
+                canceled = false;
+                clearCache();
+                try {
+                  reduceLoop(
+                    {
+                      worker,
+                      root,
+                      logger: () => {},
+                      scheduler: (stack) => stack.shift(),
+                      caching: true,
+                    },
+                    app(parse(preset.term))(
+                      parse("\\((((0 \\\\1) \\\\1) \\\\1) \\\\1)"),
+                    ),
+                  );
+                } catch (e) {
+                  console.error(preset.name, e);
+                }
+              },
+              { threshold: 0.1 },
+            );
+            observer.observe(item);
+          });
         });
-      });
     </script>
   </body>
 </html>
